@@ -102,6 +102,7 @@ const STOPWORDS = new Set([
   "활용",
   "수행",
   "담당",
+  "직접",
   "대한",
   "위한",
   "있는",
@@ -159,9 +160,95 @@ const ALIASES: Record<string, string> = {
   publication: "논문",
 };
 
+/**
+ * 한국어 조사·어미. 토큰 끝에서 떼어 낸다(긴 것부터).
+ *
+ * "최적화를"과 "최적화", "구현한"과 "구현"이 다른 토큰으로 갈리면
+ * 실제로 같은 일을 한 경험을 "근거 없음"으로 판정하게 된다. 그것이 가장 나쁜 오류다.
+ */
+const KO_SUFFIXES = [
+  "하였습니다",
+  "했습니다",
+  "하였으며",
+  "합니다",
+  "됩니다",
+  "하였고",
+  "했으며",
+  "하면서",
+  "에서는",
+  "에서의",
+  "하였다",
+  "했다",
+  "한다",
+  "하고",
+  "하며",
+  "하는",
+  "되는",
+  "시킨",
+  "시켜",
+  "이며",
+  "이고",
+  "에서",
+  "으로",
+  "에게",
+  "까지",
+  "부터",
+  "처럼",
+  "보다",
+  "마다",
+  "이나",
+  "에는",
+  "에도",
+  "와의",
+  "과의",
+  "라는",
+  "을",
+  "를",
+  "이",
+  "가",
+  "은",
+  "는",
+  "에",
+  "의",
+  "와",
+  "과",
+  "로",
+  "도",
+  "만",
+  "한",
+  "된",
+  "함",
+  "됨",
+  "들",
+].sort((a, b) => b.length - a.length);
+
+const HANGUL_ONLY = /^[가-힣]+$/;
+
+/** 토큰에서 조사·어미를 떼어 낸 형태들. 두 번까지만 떼어 낸다("개선했습니다" → "개선"). */
+function stemsOf(token: string): string[] {
+  if (!HANGUL_ONLY.test(token)) return [];
+  const out: string[] = [];
+  let t = token;
+  for (let i = 0; i < 2; i += 1) {
+    const hit = KO_SUFFIXES.find((suffix) => t.endsWith(suffix) && t.length - suffix.length >= 2);
+    if (!hit) break;
+    t = t.slice(0, t.length - hit.length);
+    out.push(t);
+  }
+  return out;
+}
+
 /** 토큰화 — 소문자화 후 한글/영문/숫자와 기술 기호(+, #)만 남긴다. "C#" 이 쪼개지지 않게 한다. */
 export function keywordsOf(...texts: (string | null | undefined)[]): Set<string> {
   const out = new Set<string>();
+  const add = (token: string) => {
+    if (token.length < 2) return;
+    if (STOPWORDS.has(token)) return;
+    if (/^\d+$/.test(token)) return; // 숫자만 있는 토큰은 의미가 없다 (연수는 따로 해석한다)
+    out.add(token);
+    const alias = ALIASES[token];
+    if (alias) out.add(alias);
+  };
   for (const raw of texts) {
     if (!raw) continue;
     const parts = raw
@@ -169,13 +256,50 @@ export function keywordsOf(...texts: (string | null | undefined)[]): Set<string>
       .split(/[^a-z0-9가-힣+#]+/)
       .filter(Boolean);
     for (const p of parts) {
-      if (p.length < 2) continue;
-      if (STOPWORDS.has(p)) continue;
-      if (/^\d+$/.test(p)) continue; // 숫자만 있는 토큰은 의미가 없다 (연수는 따로 해석한다)
-      out.add(p);
-      const alias = ALIASES[p];
-      if (alias) out.add(alias);
+      add(p);
+      for (const stem of stemsOf(p)) add(stem);
     }
+  }
+  return out;
+}
+
+/**
+ * 요구 라벨은 공고 문장을 그대로 옮긴 것이라 뒤에 조사가 붙어 있을 수 있다.
+ * 문장 안에 넣을 때는 인용부호로 감싸 어색해지지 않게 한다.
+ */
+function quoted(label: string): string {
+  return `\u201c${label.trim()}\u201d`;
+}
+
+/**
+ * 개념 연결표 — 이력에 적힌 사실을 공고의 용어로 읽어 주기 위한 최소한의 대응.
+ *
+ * "로딩 시간을 4.0초에서 3.0초로 개선했다"는 문장에는 '성능'이라는 단어가 없지만
+ * 그것은 성능 개선 작업이다. 없는 사실을 만들어 내는 것이 아니라,
+ * 이미 적혀 있는 사실을 공고의 용어로 알아보게 하는 것이다.
+ * 이렇게 붙은 해석은 storyBasis / rationale 에 그대로 드러나므로 사용자가 확인할 수 있다.
+ *
+ * 표를 크게 키우지 않는다 — 넓힐수록 "관련 있다"는 오판이 늘어난다.
+ */
+const CONCEPT_LINKS: { concept: string; hint: RegExp }[] = [
+  {
+    concept: "성능",
+    hint: /로딩|지연|레이턴시|latency|응답\s*시간|처리량|throughput|메모리|프레임|fps|병목|캐시|속도/i,
+  },
+  { concept: "최적화", hint: /최적화|병목|튜닝|경량화|로딩|메모리|속도|단축/i },
+  { concept: "분석", hint: /분석|측정|프로파일|profil|지표|모니터링|통계/i },
+  { concept: "운영", hint: /운영|장애|온콜|인시던트|배포|릴리스|패치|모니터링|유지\s*보수/i },
+  { concept: "출시", hint: /출시|릴리스|런칭|배포|launch|release/i },
+  { concept: "멘토링", hint: /멘토|온보딩|후배|주니어|코칭|지도|사용을\s*지원/i },
+  { concept: "협업", hint: /협업|유관\s*부서|코드\s*리뷰|스크럼|스프린트|타\s*부서/i },
+  { concept: "포트폴리오", hint: /github|깃허브|데모|저장소|repository/i },
+];
+
+/** 이력 문장에서 읽어 낼 수 있는 개념 토큰. */
+function conceptTokens(text: string): string[] {
+  const out: string[] = [];
+  for (const { concept, hint } of CONCEPT_LINKS) {
+    if (hint.test(text)) out.push(concept);
   }
   return out;
 }
@@ -377,7 +501,10 @@ export function parseTenure(req: Requirement): TenureSpec | null {
 
   const domain: string[] = [];
   keywordsOf(req.label, req.text).forEach((t) => {
-    if (!TENURE_GENERIC.has(t)) domain.push(t);
+    if (TENURE_GENERIC.has(t)) return;
+    // "5년", "3개월" 같은 수량 표현은 영역을 뜻하지 않는다.
+    if (/^\d+(년|개월|년차|주|일|회)$/.test(t)) return;
+    domain.push(t);
   });
   return { requiredMonths, domain: domain.sort() };
 }
@@ -451,13 +578,36 @@ export interface ExperienceMatch {
   performed: boolean;
   /** 공고가 요구하는 영역 안의 경험인가 */
   inDomain: boolean;
+  /** 이 요구에 해당하는, 이력에 실제로 적힌 과업·성과 문장 */
+  matchedFacts: string[];
 }
 
-function experienceTokens(exp: ExperienceItem, scope: "performed" | "all"): Set<string> {
+/** "참여·보조"라고 적힌 기록. 이 표현이 있으면 독립 수행으로 읽지 않는다. */
+const PARTICIPATION_WORDS = /참여|보조|어시스트|서포트|협업만|일부\s*담당/;
+/** "내가 했다"고 적힌 기록. */
+const PERFORMED_VERBS =
+  /(구현|개발|설계|개선|분석|해결|구축|작성|운영|출시|배포|최적화|검증|도입|리팩터|마이그레이션)(했|하였|하고|하며|한|함)/;
+
+/**
+ * 이 요구에 한정한 책임 수준.
+ *
+ * 이력 분석은 근거를 못 찾으면 '단순 참여'를 기본값으로 둔다(보수적 기본값).
+ * 그런데 그 요구에 해당하는 기록이 "…을 구현했습니다"처럼 본인이 수행했다고 적혀 있고
+ * 참여·보조를 뜻하는 표현이 없다면, 그 요구에 한해 '독립 수행'으로 읽는다.
+ * 이력에 적힌 표현만 근거로 쓰며, 없는 근거를 만들지 않는다.
+ */
+function effectiveLevel(m: ExperienceMatch): ResponsibilityLevel {
+  if (m.exp.responsibilityLevel !== "participate") return m.exp.responsibilityLevel;
+  const text = m.matchedFacts.join(" ") || m.exp.ownRole;
+  if (PERFORMED_VERBS.test(text) && !PARTICIPATION_WORDS.test(text)) return "independent";
+  return "participate";
+}
+
+function experienceTexts(exp: ExperienceItem, scope: "performed" | "all"): (string | undefined)[] {
   if (scope === "performed") {
-    return keywordsOf(...exp.tasks, ...exp.outcomes, exp.ownRole, ...exp.skills);
+    return [...exp.tasks, ...exp.outcomes, exp.ownRole, ...exp.skills];
   }
-  return keywordsOf(
+  return [
     exp.organization,
     exp.title,
     exp.summary,
@@ -467,12 +617,30 @@ function experienceTokens(exp: ExperienceItem, scope: "performed" | "all"): Set<
     ...exp.outcomes,
     ...exp.skills,
     ...exp.artifacts,
-  );
+  ];
+}
+
+/**
+ * 경험에서 뽑아 낸 키워드.
+ * withConcepts 를 켜면 개념 연결표로 읽어 낸 토큰까지 더한다(요구와의 대조용).
+ * 도메인 판정에는 개념 토큰을 쓰지 않는다 — 영역은 이력에 적힌 말 그대로만 본다.
+ */
+function experienceTokens(
+  exp: ExperienceItem,
+  scope: "performed" | "all",
+  withConcepts = true,
+): Set<string> {
+  const texts = experienceTexts(exp, scope);
+  const tokens = keywordsOf(...texts);
+  if (withConcepts) {
+    for (const c of conceptTokens(texts.filter(Boolean).join(" "))) tokens.add(c);
+  }
+  return tokens;
 }
 
 function isInDomain(exp: ExperienceItem, anchors: string[]): boolean {
   if (anchors.length === 0) return true; // 도메인을 특정할 수 없으면 제한하지 않는다
-  const tokens = experienceTokens(exp, "all");
+  const tokens = experienceTokens(exp, "all", false);
   return anchors.some((a) => tokens.has(a));
 }
 
@@ -493,12 +661,18 @@ function matchExperiences(
 
     const inDomain = isInDomain(exp, anchors);
     const performed = performedShared.length > 0 && PERFORMED_KINDS.includes(exp.kind);
+    const matchedFacts = [...exp.outcomes, ...exp.tasks].filter((line) => {
+      const lineTokens = keywordsOf(line);
+      for (const c of conceptTokens(line)) lineTokens.add(c);
+      return overlap(reqTokens, lineTokens).length > 0;
+    });
     const m: ExperienceMatch = {
       exp,
       shared: allShared,
       ratio: allShared.length / size,
       performed,
       inDomain,
+      matchedFacts,
     };
     // 직접 수행 = 수행 계열 경험 + 실제 수행 기록에서 확인 + 공고가 요구하는 영역 안.
     if (performed && inDomain) direct.push(m);
@@ -507,7 +681,7 @@ function matchExperiences(
 
   const byStrength = (a: ExperienceMatch, b: ExperienceMatch) =>
     b.ratio - a.ratio ||
-    RESPONSIBILITY_RANK[b.exp.responsibilityLevel] - RESPONSIBILITY_RANK[a.exp.responsibilityLevel] ||
+    RESPONSIBILITY_RANK[effectiveLevel(b)] - RESPONSIBILITY_RANK[effectiveLevel(a)] ||
     a.exp.id.localeCompare(b.exp.id);
 
   return { direct: direct.sort(byStrength), related: related.sort(byStrength) };
@@ -516,9 +690,8 @@ function matchExperiences(
 function bestResponsibility(matches: ExperienceMatch[]): ResponsibilityLevel {
   let best: ResponsibilityLevel = "participate";
   for (const m of matches) {
-    if (RESPONSIBILITY_RANK[m.exp.responsibilityLevel] > RESPONSIBILITY_RANK[best]) {
-      best = m.exp.responsibilityLevel;
-    }
+    const level = effectiveLevel(m);
+    if (RESPONSIBILITY_RANK[level] > RESPONSIBILITY_RANK[best]) best = level;
   }
   return best;
 }
@@ -547,7 +720,7 @@ function directLevel(matches: ExperienceMatch[]): MatchScore {
 function isStrongRelated(matches: ExperienceMatch[]): boolean {
   return matches.some(
     (m) =>
-      RESPONSIBILITY_RANK[m.exp.responsibilityLevel] >= RESPONSIBILITY_RANK.independent &&
+      RESPONSIBILITY_RANK[effectiveLevel(m)] >= RESPONSIBILITY_RANK.independent &&
       (m.exp.outcomes.length > 0 || m.exp.artifacts.length > 0),
   );
 }
@@ -644,8 +817,10 @@ export function bestFactFor(exp: ExperienceItem, reqTokens: Set<string>): string
   let best = candidates[0];
   let bestScore = -1;
   for (const c of candidates) {
+    const tokens = keywordsOf(c);
+    for (const concept of conceptTokens(c)) tokens.add(concept);
     // 측정 가능한 성과(outcomes)를 조금 우대한다.
-    const score = overlap(reqTokens, keywordsOf(c)).length + (exp.outcomes.includes(c) ? 0.5 : 0);
+    const score = overlap(reqTokens, tokens).length + (exp.outcomes.includes(c) ? 0.5 : 0);
     if (score > bestScore) {
       bestScore = score;
       best = c;
@@ -706,6 +881,7 @@ function buildOneDimension(
       ratio: 1,
       performed: PERFORMED_KINDS.includes(exp.kind),
       inDomain: isInDomain(exp, anchors),
+      matchedFacts: [...exp.outcomes, ...exp.tasks],
     });
     direct = withArtifacts.filter((e) => isInDomain(e, anchors) && PERFORMED_KINDS.includes(e.kind)).map(toMatch);
     related = withArtifacts.filter((e) => !direct.some((d) => d.exp.id === e.id)).map(toMatch);
@@ -753,11 +929,19 @@ function buildOneDimension(
       ratio: 1,
       performed: true,
       inDomain: true,
+      matchedFacts: [...exp.outcomes, ...exp.tasks],
     }));
     // 다른 영역의 재직 경력은 "직접 근거"가 아니다. 기술 관련성은 별도 부문에서 본다.
     related = profile.experiences
       .filter((e) => PROFESSIONAL_KINDS.includes(e.kind) && !inDomainExps.some((x) => x.id === e.id))
-      .map((exp) => ({ exp, shared: [], ratio: 0.5, performed: true, inDomain: false }));
+      .map((exp) => ({
+        exp,
+        shared: [],
+        ratio: 0.5,
+        performed: true,
+        inDomain: false,
+        matchedFacts: [...exp.outcomes, ...exp.tasks],
+      }));
 
     const ratio = domainMonths / required;
     current = ratio >= 1 ? 100 : ratio >= 0.6 ? 75 : ratio >= 0.35 ? 50 : ratio > 0 ? 20 : 0;
@@ -831,8 +1015,8 @@ function buildOneDimension(
         : "연결할 관련 경험을 찾지 못했습니다. 문장을 고쳐도 이 값은 오르지 않습니다.";
     nextStep =
       current >= 75
-        ? `${spec.label}에서 맡은 범위와 성과를 정리해 설명 가능한 형태로 만든다.`
-        : `${spec.label}을(를) 요구 범위에서 직접 수행하고, 본인 판단과 결과를 남긴다.`;
+        ? `${quoted(spec.label)} 에서 맡은 범위와 성과를 정리해 설명 가능한 형태로 만든다.`
+        : `${quoted(spec.label)} 을 요구 범위에서 직접 수행하고, 본인 판단과 결과를 남긴다.`;
     evidenceToProduce = "수행 기록·본인 역할 설명·전후 측정 자료·동료 확인(리뷰·피드백)";
     remainingGap =
       afterStory >= 75
@@ -993,7 +1177,13 @@ export function buildStories(
 const NEEDS_REAL_WORK = /운영|출시|배포|장애|책임|리드|관리|멘토링|온보딩|고객|매출|손익|조직/;
 
 /** 측정·결과물이 필요한 기대. "2 새 결과물 만들기". */
-const NEEDS_ARTIFACT = /성능|최적화|분석|구현|설계|개발|데이터|모델|테스트|검증|연구|실험/;
+const NEEDS_ARTIFACT =
+  /성능|최적화|분석|구현|설계|개발|데이터|모델|테스트|검증|연구|실험|결과물|포트폴리오|산출물/;
+
+/** 부문 라벨을 문장 안에 넣을 때 쓰는 인용 표기. */
+function quotedLabel(label: string): string {
+  return quoted(label);
+}
 
 export function buildActions(dimensions: MatchDimension[], posting: JobPosting): ActionCard[] {
   const cards: ActionCard[] = [];
@@ -1002,31 +1192,33 @@ export function buildActions(dimensions: MatchDimension[], posting: JobPosting):
     if (dim.target <= dim.afterStory) continue; // 목표가 오르지 않는 부문은 과제를 만들지 않는다
 
     const text = `${dim.label} ${dim.teamExpectation}`;
+    const gapSize = dim.target - dim.afterStory;
     let priority: 1 | 2 | 3;
     if (NEEDS_REAL_WORK.test(text)) {
+      // 실제 업무 기회가 있어야 채울 수 있는 기대
       priority = 3;
-    } else if (dim.afterStory >= 50 && dim.usedExperienceIds.length > 0 && dim.target - dim.afterStory <= 25) {
-      // 이미 있는 사실을 정리하면 설명이 되는 경우
-      priority = 1;
-    } else if (NEEDS_ARTIFACT.test(text) || dim.usedExperienceIds.length === 0) {
+    } else if (gapSize >= 50 || dim.usedExperienceIds.length === 0 || NEEDS_ARTIFACT.test(text)) {
+      // 결과물과 측정이 필요한 기대
       priority = 2;
     } else {
+      // 이미 있는 사실을 정리하면 설명이 되는 경우
       priority = 1;
     }
 
+    const label = quotedLabel(dim.label);
     const actions =
       priority === 1
         ? [
-            `${dim.label}에서 본인이 맡은 범위와 판단을 시간 순으로 정리한다.`,
+            `${label} 에서 본인이 맡은 범위와 판단을 시간 순으로 정리한다.`,
             "이력서·면접에서 쓸 문장으로 옮기고, 어떤 사실을 어떤 근거로 말하는지 확인한다.",
           ]
         : priority === 2
           ? [
-              `${dim.label}에 필요한 내용을 학습하고, 요구 범위와 같은 조건의 과제를 직접 수행한다.`,
+              `${label} 에 필요한 내용을 학습하고, 요구 범위와 같은 조건의 과제를 직접 수행한다.`,
               "수행 전후를 같은 조건에서 측정하고, 본인 코드·판단 과정을 함께 남긴다.",
             ]
           : [
-              `${dim.label}을(를) 실제 업무에서 맡을 기회를 확보한다(사내 과제·협업 프로젝트 포함).`,
+              `${label} 을 실제 업무에서 맡을 기회를 확보한다(사내 과제·협업 프로젝트 포함).`,
               "진행 기간과 본인 책임 범위, 결과를 기록한다.",
             ];
 
@@ -1038,13 +1230,13 @@ export function buildActions(dimensions: MatchDimension[], posting: JobPosting):
       from: dim.afterStory,
       to: dim.target,
       actions,
-      evidence: [dim.evidenceToProduce, `${dim.label} 수행 범위와 본인 역할을 확인할 수 있는 자료`],
+      evidence: [dim.evidenceToProduce, `${label} 의 수행 범위와 본인 역할을 확인할 수 있는 자료`],
       conditions: [
         priority === 3 ? "실제 업무 기회 또는 이에 준하는 협업 과제" : "학습·수행에 쓸 수 있는 시간",
         "결과물의 공개 가능 범위(비공개 정보 제외) 확인",
         dim.confidence === "needs-confirmation" ? "관련 사실 확인(자료 추가 또는 답변)" : "선행 지식 점검",
       ],
-      reassessCriteria: `${dim.label}의 어느 범위를 본인이 직접 수행했는지, 결과가 같은 조건에서 확인되는지를 기준으로 ${dim.afterStory}% → ${dim.target}% 를 재평가합니다. 체크만으로는 반영하지 않습니다.`,
+      reassessCriteria: `${label} 의 어느 범위를 본인이 직접 수행했는지, 결과가 같은 조건에서 확인되는지를 기준으로 ${dim.afterStory}% → ${dim.target}% 를 재평가합니다. 체크만으로는 반영하지 않습니다.`,
       status: "todo",
       savedToPlan: false,
     });
@@ -1091,13 +1283,13 @@ export function buildEnrichmentQuestions(
     let question: string;
     if (d.usedExperienceIds.length === 0 && anchorWord) {
       // 기획서 05 의 예시 형식: "게임 외의 앱이나 3D 환경에서 …"
-      question = `${anchorWord} 외의 환경에서 ${d.label} 문제를 직접 다뤄 본 경험이 있나요? 무엇을 바꾸었고 결과를 어떻게 측정했나요?`;
+      question = `${anchorWord} 외의 환경에서 ${quoted(d.label)} 에 해당하는 문제를 직접 다뤄 본 경험이 있나요? 무엇을 바꾸었고 결과를 어떻게 측정했나요?`;
     } else if (d.usedExperienceIds.length === 0) {
-      question = `${d.label}과(와) 관련해 직접 수행한 일이 있나요? 무엇을 맡았고 결과를 어떻게 확인했나요?`;
+      question = `${quoted(d.label)} 과 관련해 직접 수행한 일이 있나요? 무엇을 맡았고 결과를 어떻게 확인했나요?`;
     } else if (d.current === 0) {
-      question = `${d.label}을(를) 본인이 주도해서 수행한 사례가 있나요? 어느 범위까지 직접 결정했나요?`;
+      question = `${quoted(d.label)} 을 본인이 주도해서 수행한 사례가 있나요? 어느 범위까지 직접 결정했나요?`;
     } else {
-      question = `${d.label}에서 바꾼 내용과 그 결과를 어떻게 측정했나요? 전후 수치나 확인할 수 있는 자료가 있나요?`;
+      question = `${quoted(d.label)} 에서 바꾼 내용과 그 결과를 어떻게 측정했나요? 전후 수치나 확인할 수 있는 자료가 있나요?`;
     }
 
     return {

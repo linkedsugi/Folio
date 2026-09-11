@@ -35,12 +35,11 @@ import type {
 import {
   EXPERIENCE_KIND_LABEL,
   PUBLICATION_STATUS_LABEL,
-  RESPONSIBILITY_LEVEL_LABEL,
   RESUME_VARIANT_META,
   SECTION_LABEL,
 } from "../types";
 import { getTemplate, sectionAppliesTo } from "../templates";
-import { buildEvidenceIndex, primaryFact, stableId } from "./match";
+import { buildEvidenceIndex, keywordsOf, primaryFact, stableId } from "./match";
 
 /* ──────────────────────────────────────────────── 옵션 */
 
@@ -80,6 +79,14 @@ function isSameFact(a: string, b: string): boolean {
 
 function uniq(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+/**
+ * 부문 라벨은 공고 문장을 그대로 옮긴 것이라 뒤에 조사가 붙어 있을 수 있다.
+ * 문장 안에 넣을 때는 인용부호로 감싸 어색해지지 않게 한다.
+ */
+function quoted(label: string): string {
+  return `\u201c${label.trim()}\u201d`;
 }
 
 export function formatPeriod(exp: ExperienceItem, language: Language = "ko"): string {
@@ -195,6 +202,15 @@ interface DocContext {
   expById: Map<string, ExperienceItem>;
   /** 공고가 분량·언어를 지정해 사용자의 선택을 덮었는가 */
   overriddenByPosting: string[];
+  /** 이 공고가 실제로 요구하는 키워드 — 기술 섹션을 여기에 맞춰 추린다 */
+  jdKeywords: Set<string>;
+}
+
+/** 이 기술이 공고의 요구와 이어지는가. */
+function hasJdKeyword(skill: string, jdKeywords: Set<string>): boolean {
+  const tokens = keywordsOf(skill);
+  for (const t of tokens) if (jdKeywords.has(t)) return true;
+  return false;
 }
 
 function makeLine(params: {
@@ -226,11 +242,17 @@ function maxLinesPerEntry(targetPages: 1 | 2 | 3): number {
   return targetPages === 1 ? 2 : targetPages === 2 ? 3 : 4;
 }
 
+/**
+ * 항목 옆에 붙는 짧은 표기.
+ *
+ * 경험의 종류와 논문 상태처럼 "이력의 사실"만 적는다.
+ * 책임 수준(단순 참여/독립 수행)은 앱의 해석이고 분석서의 내용이므로 제출 문서에 넣지 않는다.
+ * 확인이 필요한 항목이 있다는 사실은 narrative.caution 으로만 알린다. (기획서 07)
+ */
 function entryMeta(exp: ExperienceItem): string {
-  const parts = [EXPERIENCE_KIND_LABEL[exp.kind], RESPONSIBILITY_LEVEL_LABEL[exp.responsibilityLevel]];
+  const parts = [EXPERIENCE_KIND_LABEL[exp.kind]];
   // 논문 상태는 반드시 그대로 표기한다. 게재/게재확정/심사중/프리프린트를 섞지 않는다.
   if (exp.publicationStatus) parts.push(PUBLICATION_STATUS_LABEL[exp.publicationStatus]);
-  if (exp.confidence === "needs-confirmation") parts.push("확인 필요");
   return parts.join(" · ");
 }
 
@@ -281,7 +303,7 @@ function baselineSummary(ctx: DocContext): ResumeLine[] {
     lines.push(
       makeLine({
         basis: "direct",
-        text: `${labels.join(" · ")}을(를) 직접 수행한 경험이 있습니다`,
+        text: `공고의 핵심 요구(${labels.map(quoted).join(", ")})에 직접 대응되는 경험이 있습니다`,
       }),
     );
   }
@@ -300,6 +322,8 @@ function skillLines(ctx: DocContext, entries: WorkEntry[], includeRelated: boole
     for (const skill of exp.skills) {
       const key = skill.toLowerCase();
       if (seen.has(key)) continue;
+      // 이 공고가 요구하지 않는 기술은 넣지 않는다. (기획서 08 "하지 않은 일은 제외")
+      if (ctx.jdKeywords.size > 0 && !hasJdKeyword(skill, ctx.jdKeywords)) continue;
       seen.add(key);
       lines.push(
         makeLine({
@@ -323,9 +347,17 @@ function buildBaselineWork(ctx: DocContext): WorkDoc {
     selected.push(exp);
   }
 
-  const entries = selected
-    .map((exp) => makeEntry(exp, ctx, directLinesFor(exp, ctx)))
-    .sort((a, b) => b.sortKey.localeCompare(a.sortKey) || a.key.localeCompare(b.key));
+  const entries = selected.map((exp) => makeEntry(exp, ctx, directLinesFor(exp, ctx)));
+
+  // 학력은 이력서의 기본 구성 요소다. 기간·기관·학위명이라는 사실 그대로 항목만 싣고,
+  // 문장(근거)은 붙이지 않는다 — 학위를 실무 수행 근거로 바꾸지 않기 위해서다. (기획서 05)
+  for (const exp of ctx.profile.experiences) {
+    if (exp.kind !== "degree") continue;
+    if (entries.some((e) => e.experienceId === exp.id)) continue;
+    entries.push(makeEntry(exp, ctx, []));
+  }
+
+  entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey) || a.key.localeCompare(b.key));
 
   return {
     summary: baselineSummary(ctx),
@@ -355,7 +387,7 @@ function storySummary(ctx: DocContext): ResumeLine[] {
     lines.push(
       makeLine({
         basis: "direct",
-        text: `${directLabels.join(" · ")}을(를) 직접 수행한 경험이 있습니다`,
+        text: `공고의 핵심 요구(${directLabels.map(quoted).join(", ")})에 직접 대응되는 경험이 있습니다`,
       }),
     );
   }
@@ -369,7 +401,7 @@ function storySummary(ctx: DocContext): ResumeLine[] {
     lines.push(
       makeLine({
         basis: "related",
-        text: `${storyLabels.join(" · ")}은(는) ${
+        text: `${storyLabels.map(quoted).join(", ")} 은 ${
           orgs.join(", ") || "이전 경험"
         }에서 수행한 관련 경험으로 설명할 수 있습니다`,
       }),
@@ -478,7 +510,7 @@ function extendWithActions(story: WorkDoc, ctx: DocContext): WorkDoc {
       plannedEntry = {
         key,
         organization: "실행 계획",
-        title: `${dim.label} 보강`,
+        title: `${quoted(dim.label)} 보강`,
         period: "예정",
         meta: "아직 수행하지 않은 계획 항목",
         section: "projects",
@@ -499,8 +531,9 @@ function extendWithActions(story: WorkDoc, ctx: DocContext): WorkDoc {
         text: `${PLANNED_PREFIX}${ctx.report.actions
           .slice(0, 2)
           .map((a) => ctx.report.dimensions.find((d) => d.id === a.dimensionId)?.label)
-          .filter(Boolean)
-          .join(" · ")} 보강 과제를 진행할 예정입니다`,
+          .filter((v): v is string => Boolean(v))
+          .map(quoted)
+          .join(", ")} 보강 과제를 진행할 예정입니다`,
       }),
     );
   }
@@ -717,6 +750,12 @@ function makeContext(
     directIds,
     expById: new Map(profile.experiences.map((e) => [e.id, e])),
     overriddenByPosting,
+    jdKeywords: keywordsOf(
+      posting.roleTitle,
+      ...posting.responsibilities,
+      ...posting.requirements.map((r) => `${r.label} ${r.text}`),
+      ...report.dimensions.map((d) => `${d.label} ${d.teamExpectation}`),
+    ),
   };
 }
 

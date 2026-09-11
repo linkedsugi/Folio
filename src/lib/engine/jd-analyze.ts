@@ -28,7 +28,6 @@ import {
   containsAny,
   lineContaining,
   normalize,
-  objectParticle,
   shortHash,
   shorten,
   splitBulletItems,
@@ -160,13 +159,25 @@ interface HeadingMatch {
   inline?: string;
 }
 
-/** 제목 줄에서 장식(#, 【】, ■, 콜론)을 떼어 낸다. */
-function bareHeading(line: string): string {
+/** 줄 앞뒤의 장식 문자(#, ■, ▶, 불릿)만 떼어 낸다. 내용은 건드리지 않는다. */
+function stripDecoration(line: string): string {
   return line
-    .replace(/^[#\-–—*•·▪◆■□▶【[(<]+/, "")
-    .replace(/[】\])>]+/g, " ")
-    .replace(/[:：]\s*$/, "")
+    .replace(/^[#*•·▪▫◦‣※◆■□▶✓✔\-–—\s]+/, "")
+    .replace(/[\s#*•·▪◆■□▶]+$/, "")
     .trim();
+}
+
+/**
+ * 제목 줄에서 장식과 감싼 괄호, 끝의 콜론을 떼어 낸다.
+ * 괄호는 "감싼 것"만 벗긴다 — "주요업무 (Responsibilities)" 의 닫는 괄호를 지워 버리면
+ * 뒤에서 괄호 설명을 걷어낼 수 없게 된다.
+ */
+function bareHeading(line: string): string {
+  const value = stripDecoration(line);
+  // 줄 전체를 감싼 괄호일 때만 벗긴다. 그래야 "주요업무 (Responsibilities)" 의
+  // 닫는 괄호가 살아남아 뒤에서 괄호 설명을 걷어낼 수 있다.
+  const wrapped = /^[【[(<]\s*([^】\])>]*)\s*[】\])>]$/.exec(value);
+  return (wrapped ? wrapped[1] : value).replace(/[:：]\s*$/, "").trim();
 }
 
 function sectionKeyOf(candidate: string): SectionKey | null {
@@ -250,7 +261,7 @@ function itemsOf(sections: Section[], key: SectionKey): BulletItem[] {
 
 /** 공고 제목처럼 보이는 줄인가. 섹션 제목은 제외한다. */
 function isPostingHeading(line: string): boolean {
-  const value = line.trim();
+  const value = stripDecoration(line);
   if (value.length < 4 || value.length > 70) return false;
   if (sectionKeyOf(bareHeading(value))) return false;
   if (/^#{1,3}\s+\S/.test(value)) return true;
@@ -291,7 +302,7 @@ export function splitPostings(rawText: string): PostingCandidate[] {
       // 제목만 있고 내용이 없는 조각은 공고가 아니라 소제목일 가능성이 크다.
       if (filled.length >= 3) {
         segments.push({
-          title: bareHeading(lines[from]).replace(/^#+\s*/, "").trim(),
+          title: stripDecoration(lines[from]),
           body: chunk.join("\n").trim(),
         });
       }
@@ -300,7 +311,7 @@ export function splitPostings(rawText: string): PostingCandidate[] {
 
   if (segments.length >= 2) return segments;
   const firstLine = lines.find((l) => l.trim().length > 0) ?? "";
-  return [{ title: bareHeading(firstLine), body }];
+  return [{ title: stripDecoration(firstLine), body }];
 }
 
 /* ────────────────────────────────────────────── 회사·직무·팀 */
@@ -325,7 +336,8 @@ function extractCompany(body: string, preamble: string[]): string {
   const labeled = labelValue(body, ["회사", "회사명", "기업", "기업명", "소속", "company"]);
   if (labeled) return labeled;
 
-  for (const line of preamble.slice(0, 6)) {
+  for (const rawLine of preamble.slice(0, 6)) {
+    const line = stripDecoration(rawLine);
     // "[루멘플레이 스튜디오] Senior Unity Gameplay Engineer 채용"
     const bracket = /^[[【(]\s*([^\]】)]{2,30})\s*[\]】)]/.exec(line.trim());
     if (bracket) {
@@ -347,7 +359,7 @@ const ROLE_WORD_RE =
   /(개발자|엔지니어|매니저|디자이너|기획자|연구원|분석가|컨설턴트|마케터|PM|PO|리드|Engineer|Developer|Manager|Designer|Analyst|Scientist|Researcher|Specialist|Lead|Director|Fellow)/i;
 
 function cleanRoleTitle(value: string): string {
-  return value
+  return stripDecoration(value)
     .replace(/^[[【(]\s*[^\]】)]*\s*[\]】)]\s*/, "") // 앞의 [회사] 제거
     .replace(/\s*[[(（]\s*(신입|경력|경력직|정규직|계약직|인턴|채용전환형)[^)\]）]*\s*[)\]）]/g, "")
     .replace(/\s*(채용\s*공고|채용|모집)\s*$/, "")
@@ -457,6 +469,8 @@ export function toRequirementLabel(text: string): string {
   label = label.replace(/\s*(?:하신|있으신|가능하신|보유하신|해보신)\s*분.*$/, "");
   label = label.replace(/\s*(?:경험|이해|지식)이?\s*있(?:는|으신)\s*분.*$/, "");
   label = label.replace(/\s*(?:에\s*대한|에\s*관한)\s*(?:경험|이해|지식|이해도)\s*$/, "");
+  // 조사를 먼저 떼야 "…경험이" 같은 꼬리가 남지 않는다.
+  label = label.replace(/\s*(?:이|가|을|를|은|는)\s*$/, "");
   label = label.replace(/\s*(?:경험|경력|역량|능력|이해도|지식)\s*(?:보유|필요|필수|우대)?\s*$/, "");
   label = label.replace(/\s*(?:이|가|을|를|은|는)\s*$/, "");
   label = label.replace(/[,·:;\-–—]+$/, "").trim();
@@ -572,10 +586,9 @@ function buildIdealCandidate(args: {
 
   const nouns = coreTasks.map((t) => toTaskNoun(t.task));
   const subject = roleTitle || "지원자";
-  const oneLine =
-    nouns.length > 0
-      ? `${nouns.join(", ")}${objectParticle(nouns[nouns.length - 1])} 맡을 ${subject}`
-      : "";
+  // 업무 문구에 이미 "…을/를" 이 들어 있는 경우가 많아, 뒤에 조사를 또 붙이면 문장이 깨진다.
+  // 그래서 업무는 나열하고 한 번만 "이 일을 맡을 ○○" 로 닫는다.
+  const oneLine = nouns.length > 0 ? `${nouns.join(" · ")} — 이 일을 맡을 ${subject}` : "";
 
   const rationale: RationaleNote[] = [];
   if (coreTasks.length > 0) {

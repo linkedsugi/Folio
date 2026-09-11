@@ -184,7 +184,14 @@ describe("buildResumeSet — 세 판본의 관계", () => {
       );
       // 분석서에서 채택한 문장이 그대로 이력서 2 에 들어간다 (두 결과물이 일치해야 한다)
       expect(line).toBeDefined();
-      expect(line?.dimensionId).toBe(story.dimensionId);
+      // 같은 사실이 두 기대를 함께 설명하면 문장은 한 번만 싣고, 그중 한 부문에 연결한다.
+      const sharing = report.stories
+        .filter(
+          (o) =>
+            o.usedExperienceIds[0] === primaryId && strip(o.resumeSentence) === strip(story.resumeSentence),
+        )
+        .map((o) => o.dimensionId);
+      expect(sharing).toContain(line?.dimensionId);
     }
     // 항목에 실린 related 문장은 모두 실제 경험에서 나온다
     const entryRelated = set.story.sections
@@ -228,6 +235,29 @@ describe("buildResumeSet — 세 판본의 관계", () => {
     expect(game?.period).toBe("2025.09~2026.08");
     const paper = entries.find((e) => e.experienceId === "e-paper");
     if (paper) expect(paper.meta).toContain("심사 중");
+  });
+
+  it("학력은 세 판본 모두에 항목으로 싣되 실무 근거 문장으로 쓰지 않는다", () => {
+    for (const doc of [set.baseline, set.story, set.future]) {
+      const degree = doc.sections.flatMap((s) => s.entries).find((e) => e.experienceId === "e-degree");
+      expect(degree).toBeDefined();
+      expect(degree?.title).toBe("컴퓨터공학 학사");
+      expect(degree?.period).toBe("2019.03~2023.02");
+      // 학위 자체를 실무 수행 근거로 주장하지 않는다
+      expect(degree?.lines.filter((l) => l.basis === "direct")).toHaveLength(0);
+    }
+  });
+
+  it("제출 문서의 항목 표기에 앱의 내부 판단(책임 수준)을 넣지 않는다", () => {
+    const metas = [set.baseline, set.story]
+      .flatMap((d) => d.sections.flatMap((s) => s.entries))
+      .map((e) => e.meta ?? "");
+    expect(metas.length).toBeGreaterThan(0);
+    for (const meta of metas) {
+      expect(meta).not.toContain("단순 참여");
+      expect(meta).not.toContain("독립 수행");
+      expect(meta).not.toContain("확인 필요");
+    }
   });
 
   it("이력서 문장에는 분석서의 점수를 넣지 않는다", () => {

@@ -1,7 +1,14 @@
+/**
+ * 파이프라인 통합 검증 — 실제 분석기(jd-analyze / profile-analyze)를 통과한 결과로
+ * 매칭 엔진과 이력서 생성기가 함께 동작하는지 본다.
+ * 공고·인물·회사는 모두 가상이다.
+ */
 import { describe, expect, it } from "vitest";
-import { runPipeline } from "@/lib/engine/pipeline";
 
-const jd = `루멘플레이 스튜디오
+import { PLANNED_PREFIX } from "../resume-build";
+import { runPipeline, stepAnalyzeJD, stepAnalyzeProfile, stepBaseline, stepPlan, stepStory } from "../pipeline";
+
+const jdText = `루멘플레이 스튜디오
 Senior Unity Gameplay Engineer
 
 주요 업무
@@ -19,7 +26,7 @@ Senior Unity Gameplay Engineer
 - 주니어 멘토링 경험
 `;
 
-const profile = `한서준
+const profileText = `한서준
 Unity / C# 개발자
 seojun@example.com
 
@@ -40,20 +47,93 @@ seojun@example.com
 Unity, C#, 3D, 성능 최적화
 `;
 
-describe("smoke", () => {
-  it("runs", () => {
-    const r = runPipeline({ jdText: jd, profileText: profile });
-    console.log("posting", r.posting.company, "/", r.posting.roleTitle, "reqs:", r.posting.requirements.length);
-    console.log("exps", r.profile.experiences.map(e => `${e.kind}:${e.organization}/${e.title}`));
-    console.log("overall", r.report.overall.display, "verdict", r.report.verdict);
-    console.log("dims", r.report.dimensions.map(d => `${d.label} w${d.weight} ${d.current}->${d.afterStory}->${d.target} [${d.confidence}]`));
-    console.log("stories", r.report.stories.map(s => s.resumeSentence));
-    console.log("actions", r.report.actions.map(a => `P${a.priority} ${a.from}->${a.to}`));
-    console.log("questions", r.questions.map(q => q.question));
-    console.log("baseline lines", r.resumes.baseline.sections.flatMap(s=>[...s.lines,...s.entries.flatMap(e=>e.lines)]).map(l=>`${l.basis}| ${l.text}`));
-    console.log("story lines", r.resumes.story.sections.flatMap(s=>[...s.lines,...s.entries.flatMap(e=>e.lines)]).map(l=>`${l.basis}| ${l.text}`));
-    console.log("future planned", r.resumes.future.sections.flatMap(s=>s.entries.flatMap(e=>e.lines)).filter(l=>l.basis==="planned").map(l=>l.text));
-    console.log("narratives", [r.resumes.baseline, r.resumes.story, r.resumes.future].map(d=>`${d.variant}:${d.narrative.matchScore}%`));
-    expect(r.report.dimensions.reduce((a,d)=>a+d.weight,0)).toBe(100);
+const result = runPipeline({ jdText, profileText });
+
+describe("runPipeline — 전체 실행", () => {
+  it("공고와 이력을 읽어 분석서와 세 판본을 만든다", () => {
+    expect(result.posting.requirements.length).toBeGreaterThan(0);
+    expect(result.profile.experiences.length).toBeGreaterThan(0);
+    expect(result.report.dimensions.reduce((a, d) => a + d.weight, 0)).toBe(100);
+    expect(result.resumes.baseline.variant).toBe("baseline");
+    expect(result.resumes.story.variant).toBe("story");
+    expect(result.resumes.future.variant).toBe("future");
+    expect(result.resumes.submitVariant).toBe("story");
+  });
+
+  it("전체 매칭률이 현재 ≤ 스토리 후 ≤ 목표 순서를 지킨다", () => {
+    const d = result.report.overall.display;
+    expect(d.current).toBeLessThanOrEqual(d.afterStory);
+    expect(d.afterStory).toBeLessThanOrEqual(d.target);
+  });
+
+  it("경력 연수 조건은 목표에서도 오르지 않고 별도 확인 안내가 붙는다", () => {
+    const tenure = result.report.dimensions.find((x) => x.targetCaveat);
+    expect(tenure).toBeDefined();
+    expect(tenure?.target).toBe(tenure?.afterStory);
+    expect(result.report.verdictNote).toContain("별도 확인");
+  });
+
+  it("다른 영역(비게임)의 경험은 관련 경험으로만 쓰이고 연수에는 합산되지 않는다", () => {
+    const tenure = result.report.dimensions.find((x) => x.targetCaveat);
+    // 요구 5년(60개월) 대비 게임 영역 재직 12개월 → 20% 유지
+    expect(tenure?.current).toBe(20);
+    expect(tenure?.storyBasis).toContain("합산하지 않고");
+  });
+
+  it("제출 가능한 두 판본에는 예정 문장이 없고 미래 판본에만 있다", () => {
+    const lines = (v: "baseline" | "story" | "future") =>
+      result.resumes[v].sections.flatMap((s) => [...s.lines, ...s.entries.flatMap((e) => e.lines)]);
+    expect(lines("baseline").some((l) => l.basis === "planned")).toBe(false);
+    expect(lines("story").some((l) => l.basis === "planned")).toBe(false);
+    const planned = lines("future").filter((l) => l.basis === "planned");
+    expect(planned.length).toBeGreaterThan(0);
+    expect(planned.every((l) => l.text.startsWith(PLANNED_PREFIX))).toBe(true);
+  });
+
+  it("추가 질문은 근거가 부족한 부문에 대해 3~5개가 나온다", () => {
+    expect(result.questions.length).toBeGreaterThanOrEqual(3);
+    expect(result.questions.length).toBeLessThanOrEqual(5);
+  });
+
+  it("같은 입력이면 같은 결과를 낸다 (결정적)", () => {
+    const again = runPipeline({ jdText, profileText });
+    expect(JSON.stringify(again)).toBe(JSON.stringify(result));
+  });
+});
+
+describe("단계 함수 — 화면이 그대로 호출한다", () => {
+  const posting = stepAnalyzeJD(jdText, { sourceType: "paste" });
+  const profile = stepAnalyzeProfile(profileText, { name: "한서준" });
+
+  it("stepBaseline 은 현재 매칭과 이력서 1 을 만든다", () => {
+    const baseline = stepBaseline(posting, profile);
+    expect(baseline.resume.variant).toBe("baseline");
+    expect(baseline.overall).toEqual(baseline.report.overall);
+    expect(baseline.resume.narrative.matchScore).toBe(baseline.report.overall.display.current);
+  });
+
+  it("stepStory 는 앞 단계의 분석서를 받아 이력서 2 를 만든다", () => {
+    const baseline = stepBaseline(posting, profile);
+    const story = stepStory(posting, profile, baseline.report);
+    expect(story.resume.variant).toBe("story");
+    expect(story.stories).toBe(baseline.report.stories);
+    expect(story.resume.narrative.matchScore).toBe(baseline.report.overall.display.afterStory);
+  });
+
+  it("stepPlan 은 실행 과제와 제출 불가 판본을 만든다", () => {
+    const baseline = stepBaseline(posting, profile);
+    const plan = stepPlan(posting, profile, baseline.report);
+    expect(plan.resume.variant).toBe("future");
+    expect(plan.actions).toBe(baseline.report.actions);
+    expect(plan.resume.narrative.matchScore).toBe(baseline.report.overall.display.target);
+    expect(plan.resume.narrative.caution).toContain("제출할 수 없습니다");
+    // 체크만으로 점수를 주지 않는다 — 시작 상태는 모두 todo
+    expect(plan.actions.every((a) => a.status === "todo")).toBe(true);
+  });
+
+  it("출처(붙여넣기·URL)는 분석 결과에 그대로 남는다", () => {
+    const fromUrl = stepAnalyzeJD(jdText, { sourceType: "url", sourceUrl: "https://example.com/jobs/1" });
+    expect(fromUrl.sourceType).toBe("url");
+    expect(fromUrl.sourceUrl).toBe("https://example.com/jobs/1");
   });
 });
