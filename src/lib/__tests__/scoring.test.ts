@@ -43,6 +43,7 @@ function dim(
     rationale: [],
     usedExperienceIds: [],
     confidence: "confirmed",
+    storyLift: afterStory > current ? "lifted" : "already-reflected",
   };
 }
 
@@ -89,6 +90,7 @@ describe("필수 조건은 총점과 별개의 정보다", () => {
       text: "상용 게임 개발 5년 이상",
       equivalence: "unknown",
       sourceQuote: "상용 게임 개발 5년 이상",
+      derivation: "stated",
     },
   ];
 
@@ -131,6 +133,8 @@ describe("재평가: 체크만으로 점수를 주지 않는다", () => {
     id: "a1",
     dimensionId: "d3",
     priority: 2,
+    targetSentence: "게임의 핵심 성능 문제를 직접 개선하고 전후를 측정했습니다.",
+    experienceNeeded: "요구 범위와 같은 조건에서 직접 개선한 과제와 전후 측정 자료",
     gap: "게임 내 독립 최적화",
     from: 50,
     to: 75,

@@ -9,7 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import type { SampleId } from "@/lib/types";
-import { SAMPLES, getSample } from "@/lib/samples";
+import { getSample, getSamples } from "@/lib/samples";
 import { useAppStore, useHydrated } from "@/store/app-store";
 import { AppShell } from "@/components/AppShell";
 import { StartScreen } from "@/components/screens/StartScreen";
@@ -22,6 +22,7 @@ export default function HomePage() {
   const createFromSample = useAppStore((s) => s.createFromSample);
   const deleteApplication = useAppStore((s) => s.deleteApplication);
   const setActive = useAppStore((s) => s.setActive);
+
 
   function startOwn() {
     createApplication();
@@ -45,7 +46,7 @@ export default function HomePage() {
   return (
     <AppShell app={null} stage="start">
       <StartScreen
-        samples={SAMPLES}
+        samples={getSamples()}
         applications={hydrated ? applications : []}
         onStartOwn={startOwn}
         onStartSample={startSample}
