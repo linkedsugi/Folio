@@ -138,7 +138,31 @@ Google 로그인을 함께 쓰려면 두 가지가 더 필요합니다.
 
 설정하지 않아도 앱은 그대로 동작하고, 로그인 자리에는 "설정되어 있지 않습니다" 안내가 나옵니다.
 
-### 서버가 있는 곳에 올릴 때
+### Railway 에 올리기 (정밀 분석·회원 관리를 실제로 쓰려면)
+
+정적 배포로는 `/api/*` 가 없어 회원 목록이 브라우저마다 따로이고 정밀 분석도 쓸 수 없습니다.
+Railway 같은 Node 호스팅에 올리면 둘 다 제대로 동작합니다.
+
+1. **New Project → Deploy from GitHub repo** 에서 이 저장소를 고릅니다.
+   `railway.json` 이 빌드·실행·헬스체크를 이미 정의하고 있어 따로 설정할 것이 없습니다.
+2. **Variables** 에 필요한 값을 넣습니다.
+
+   | 변수 | 넣는 이유 |
+   |---|---|
+   | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google 로그인 |
+   | `ROLEFIT_ANTHROPIC_API_KEY` | 정밀 분석 (관리자가 켜야 동작) |
+   | `ROLEFIT_DATA_DIR` | 회원·설정 보관 위치. 아래 볼륨 경로와 같게 (`/data`) |
+
+   `NEXT_PUBLIC_BASE_PATH` 는 **넣지 마세요.** 도메인 루트에 올라가므로 설정하면 자원 경로가 어긋납니다.
+3. **Volume 을 붙이고 `/data` 에 마운트합니다.** 붙이지 않으면 재배포할 때마다
+   회원 목록과 설정이 사라집니다. 컨테이너 파일시스템은 배포마다 새로 만들어지기 때문입니다.
+4. **Settings → Networking → Generate Domain** 으로 주소를 만들고,
+   그 주소를 Google Cloud Console 의 **승인된 JavaScript 원본**에 추가합니다.
+
+배포가 살아났는지는 `/api/health` 로 확인할 수 있습니다.
+어떤 기능이 켜져 있는지도 함께 알려 주므로, 변수를 빠뜨렸는지 바로 보입니다.
+
+### 그 밖의 서버 환경
 
 `npm run build && npm start` 로 Node 에서 돌리면 두 가지가 더 살아납니다.
 
