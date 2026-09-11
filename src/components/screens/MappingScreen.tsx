@@ -30,6 +30,7 @@ import { DimensionDetail } from "@/components/report/DimensionDetail";
 import { StoryCardView } from "@/components/report/StoryCardView";
 import { ActionCardView } from "@/components/report/ActionCardView";
 import { VerdictPanel } from "@/components/report/VerdictPanel";
+import { CandidacyPanel } from "@/components/report/CandidacyPanel";
 import { ResumeDocumentView } from "@/components/resume/ResumeDocumentView";
 import { NarrativePanel } from "@/components/resume/VariantSwitch";
 
@@ -156,7 +157,12 @@ export function MappingScreen({
       </section>
 
       {selectedDimension ? (
-        <DimensionDetail dimension={selectedDimension} experiences={profile.experiences} />
+        <DimensionDetail
+          dimension={selectedDimension}
+          experiences={profile.experiences}
+          stories={report.stories}
+          actions={report.actions}
+        />
       ) : null}
 
       {stage === "baseline" ? (
@@ -165,6 +171,32 @@ export function MappingScreen({
           note={report.verdictNote}
           mustHave={report.mustHaveStatus}
         />
+      ) : null}
+
+      {stage === "story" ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-[15px] font-bold text-ink">이 팀이 지금 나를 검토할 이유</h2>
+            <p className="text-[12px] text-ink-muted">
+              매칭률은 요구사항과의 대응 정도이고, 아래는 강점·우려·전제 조건에 대한 판단입니다.
+              이력서 3을 완성할 때까지 지원을 미룰 필요는 없습니다.
+            </p>
+          </div>
+          <CandidacyPanel candidacy={report.candidacyNow} profile={profile} />
+        </section>
+      ) : null}
+
+      {stage === "plan" ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-[15px] font-bold text-ink">과제를 마쳤다면 어떤 지원자가 되는가</h2>
+            <p className="text-[12px] text-ink-muted">
+              아래 문장들이 사실이 되었을 때의 설명입니다. 지금 면접에서 완료된 경험처럼 말하면
+              안 됩니다.
+            </p>
+          </div>
+          <CandidacyPanel candidacy={report.candidacyFuture} profile={profile} />
+        </section>
       ) : null}
 
       {stage === "story" && movedStories.length > 0 ? (

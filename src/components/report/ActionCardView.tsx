@@ -27,22 +27,34 @@ export function ActionCardView({
 
   return (
     <article className="rounded-sm border border-rule bg-canvas">
-      <header className="flex flex-wrap items-start justify-between gap-2 border-b border-rule px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
-              {card.priority} {PRIORITY_LABEL[card.priority]}
-            </span>
-          </div>
-          {/* ① 부족한 기대 */}
-          <h3 className="mt-1.5 text-sm font-bold text-ink">{card.gap}</h3>
+      <header className="border-b border-rule px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <span className="rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
+            {card.priority} {PRIORITY_LABEL[card.priority]}
+          </span>
+          {/* 현재 → 목표 */}
+          <p className="tabular shrink-0 text-sm font-bold">
+            <span className="text-story">{card.from}%</span>
+            <span className="mx-1 text-ink-faint">→</span>
+            <span className="text-goal">{card.to}%</span>
+          </p>
         </div>
-        {/* ② 현재 → 목표 */}
-        <p className="tabular shrink-0 text-sm font-bold">
-          <span className="text-story">{card.from}%</span>
-          <span className="mx-1 text-ink-faint">→</span>
-          <span className="text-goal">{card.to}%</span>
+
+        {/*
+          설계의 출발점은 "부족한 것"이 아니라 "미래 이력서에 쓰고 싶은 문장"이다.
+          그래야 강의 목록이 아니라 확보할 경력의 설계도가 된다.
+        */}
+        <p className="mt-2 text-[11px] font-semibold tracking-wide text-goal">
+          이력서 3에 쓰고 싶은 문장
         </p>
+        <blockquote className="mt-0.5 border-l-2 border-goal bg-goal-soft px-2.5 py-1.5 text-[13px] leading-relaxed font-medium text-ink">
+          “{card.targetSentence}”
+        </blockquote>
+        <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
+          <span className="font-semibold text-ink">이 문장을 사실로 만들려면:</span>{" "}
+          {card.experienceNeeded}
+        </p>
+        <p className="mt-1 text-[11px] leading-snug text-ink-faint">부족한 기대: {card.gap}</p>
       </header>
 
       <div className="space-y-3 px-4 py-3">
@@ -89,6 +101,12 @@ export function ActionCardView({
               <p className="text-[13px] text-ink-muted">{card.reassessCriteria}</p>
               <p className="mt-1 text-[12px] text-ink-faint">
                 완료 판단: {PRIORITY_DONE_CRITERIA[card.priority]}
+              </p>
+              {/* 이 과제가 끝나면 문장이 어디로 가는지 미리 알려 준다. */}
+              <p className="mt-1.5 rounded-sm bg-story-soft px-2 py-1 text-[12px] leading-snug text-story">
+                {card.promotedLineId
+                  ? "확인을 마쳐 이력서 1·2 의 사실 문장으로 옮겨졌습니다."
+                  : "재평가를 통과하면 위 문장이 [예정] 표시를 떼고 이력서 1·2 로 옮겨갑니다."}
               </p>
             </Block>
           </div>

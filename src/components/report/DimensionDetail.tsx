@@ -4,17 +4,35 @@
  * 부문별 점수를 누르면 "팀의 기대 / 반영한 내 경험 / 점수의 이유 / 남는 차이"를 보여준다.
  * 전체는 부문 중요도를 반영한 값이며, 회사의 내부 배점이라고 설명하지 않는다.
  */
-import type { ExperienceItem, MatchDimension } from "@/lib/types";
+import {
+  STORY_LIFT_LABEL,
+  STORY_LIFT_NOTE,
+  type ActionCard,
+  type ExperienceItem,
+  type MatchDimension,
+  type StoryCard,
+} from "@/lib/types";
 import { STAGE_META } from "@/lib/scoring";
 
+/**
+ * 부문 하나를 누르면 끝까지 이어져야 한다:
+ *   점수의 이유 → 활용한 경험 → 이력서 2의 문장 → 개선 과제 → 이력서 3의 목표 문장
+ * 그래서 이 부문에 연결된 스토리 카드와 실행 카드를 함께 받는다.
+ */
 export function DimensionDetail({
   dimension,
   experiences,
+  stories = [],
+  actions = [],
 }: {
   dimension: MatchDimension;
   experiences: ExperienceItem[];
+  stories?: StoryCard[];
+  actions?: ActionCard[];
 }) {
   const used = experiences.filter((e) => dimension.usedExperienceIds.includes(e.id));
+  const story = stories.find((s) => s.dimensionId === dimension.id);
+  const dimActions = actions.filter((a) => a.dimensionId === dimension.id);
 
   return (
     <div className="rounded-sm border border-rule bg-canvas">
@@ -95,6 +113,28 @@ export function DimensionDetail({
           ) : null}
         </Row>
 
+        {/*
+          "표현의 개선"과 "경험 자체의 개선"을 구분해 준다.
+          값이 그대로인 것이 앱이 일을 안 한 것처럼 보이면 안 된다.
+        */}
+        <Row label="스토리텔링에서">
+          <p className="font-medium text-ink">{STORY_LIFT_LABEL[dimension.storyLift]}</p>
+          <p className="mt-0.5 text-ink-muted">{STORY_LIFT_NOTE[dimension.storyLift]}</p>
+          {dimension.storyBasis ? (
+            <p className="mt-1 text-ink-muted">{dimension.storyBasis}</p>
+          ) : null}
+        </Row>
+
+        {story ? (
+          <Row label="이력서 2의 문장">
+            {/* 분석서에서 채택한 경험과 실제 이력서의 문장이 일치해야 한다. (기획서 14) */}
+            <blockquote className="border-l-2 border-story pl-2.5 leading-relaxed">
+              “{story.resumeSentence}”
+            </blockquote>
+            <p className="mt-1 text-[12px] text-ink-muted">면접에서: “{story.interviewNote}”</p>
+          </Row>
+        ) : null}
+
         <Row label="남는 차이">
           <p className="text-warn">{dimension.remainingGap}</p>
           {dimension.targetCaveat ? (
@@ -108,6 +148,24 @@ export function DimensionDetail({
           <p>{dimension.nextStep}</p>
           <p className="mt-0.5 text-ink-muted">→ {dimension.evidenceToProduce}</p>
         </Row>
+
+        {dimActions.length > 0 ? (
+          <Row label="이력서 3의 목표 문장">
+            {/* 개선 과제는 이 문장에서 거꾸로 설계된다. */}
+            <ul className="space-y-2">
+              {dimActions.map((a) => (
+                <li key={a.id}>
+                  <blockquote className="border-l-2 border-goal bg-goal-soft px-2 py-1 leading-relaxed">
+                    “{a.targetSentence}”
+                  </blockquote>
+                  <p className="mt-0.5 text-[12px] text-ink-muted">
+                    사실로 만들려면: {a.experienceNeeded}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </Row>
+        ) : null}
 
         {dimension.confidence === "needs-confirmation" ? (
           <div className="bg-warn-soft px-4 py-2.5 text-[12px] leading-snug text-warn">

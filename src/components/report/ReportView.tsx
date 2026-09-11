@@ -21,6 +21,7 @@ import { VerdictPanel } from "./VerdictPanel";
 import { StoryCardView } from "./StoryCardView";
 import { ActionCardView } from "./ActionCardView";
 import { DimensionDetail } from "./DimensionDetail";
+import { CandidacyPanel } from "./CandidacyPanel";
 
 export function ReportView({
   report,
@@ -98,6 +99,9 @@ export function ReportView({
           mustHave={report.mustHaveStatus}
         />
 
+        {/* 지금 지원한다면 — 숫자와 분리된 판단 이야기 */}
+        <CandidacyPanel candidacy={report.candidacyNow} profile={profile} />
+
         {/* 우선 행동 */}
         <div className="avoid-break rounded-sm border border-rule bg-canvas px-4 py-3">
           <h3 className="text-[13px] font-bold text-ink">먼저 할 일</h3>
@@ -131,7 +135,13 @@ export function ReportView({
         <IdealCandidateCard ideal={report.idealCandidate} requirements={posting.requirements} />
         <div className="space-y-3">
           {report.dimensions.map((d) => (
-            <DimensionDetail key={d.id} dimension={d} experiences={profile.experiences} />
+            <DimensionDetail
+              key={d.id}
+              dimension={d}
+              experiences={profile.experiences}
+              stories={report.stories}
+              actions={report.actions}
+            />
           ))}
         </div>
         <p className="text-[11px] leading-relaxed text-ink-faint">
@@ -168,6 +178,7 @@ export function ReportView({
               않습니다.
             </p>
           </div>
+          <CandidacyPanel candidacy={report.candidacyFuture} profile={profile} />
           {byPriority.map(([p, items]) =>
             items.length === 0 ? null : (
               <div key={p} className="space-y-2">

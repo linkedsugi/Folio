@@ -45,6 +45,21 @@ export type RequirementKind = "must" | "preferred";
 /** 동등 경험 인정 여부. JD 에 명시가 없으면 'unknown' 으로 두고 "확인 필요"로 안내한다. */
 export type EquivalenceAllowance = "allowed" | "not-allowed" | "unknown";
 
+/**
+ * 이 조건이 공고에 **명시된 것**인지, 앱이 **읽어낸 해석**인지.
+ *
+ * 앱은 "Unity, C#, 게임 개발 5년" 같은 명시 조건만 뽑는 데 그치지 않고
+ * "출시 과정에서 맡은 부분을 책임질 수 있는 사람" 같은 전체 모습까지 해석한다.
+ * 그 해석은 유용하지만 사실과 같은 무게로 보여서는 안 된다.
+ * 그래서 화면에서 둘을 구분해 표시한다.
+ */
+export type RequirementDerivation = "stated" | "inferred";
+
+export const REQUIREMENT_DERIVATION_LABEL: Record<RequirementDerivation, string> = {
+  stated: "공고에 명시",
+  inferred: "공고에서 해석",
+};
+
 export interface Requirement {
   id: string;
   kind: RequirementKind;
@@ -53,8 +68,12 @@ export interface Requirement {
   /** 공고에서 요구하는 내용 전체 */
   text: string;
   equivalence: EquivalenceAllowance;
-  /** 이 조건을 뽑아낸 공고 원문 */
+  /** 이 조건을 뽑아낸 공고 원문. inferred 라면 해석의 근거가 된 문구. */
   sourceQuote: string;
+  /** 명시된 조건인가, 앱의 해석인가 */
+  derivation: RequirementDerivation;
+  /** inferred 일 때, 왜 그렇게 읽었는지 한 줄 */
+  inferenceNote?: string;
 }
 
 /** 책임 수준: 단순 참여 / 독립 수행 / 과제 리드 / 조직 책임 (기획서 04) */
@@ -287,7 +306,37 @@ export interface MatchDimension {
   confidence: ConfidenceState;
   /** 목표에서도 필수 조건이 충족되지 않는 경우의 안내 (예: "게임 5년"은 별도 확인) */
   targetCaveat?: string;
+  /**
+   * 스토리텔링에서 값이 왜 움직였는가, 혹은 왜 움직이지 않았는가.
+   *
+   * "표현의 개선"과 "경험 자체의 개선"은 다르다.
+   * 이미 충분히 반영된 경험이라면 스토리텔링 후에도 값이 그대로일 수 있고,
+   * 그건 앱이 일을 안 한 게 아니라 더 연결할 것이 없다는 뜻이다.
+   * 사용자가 그 차이를 오해하지 않도록 이유를 남긴다.
+   */
+  storyLift: StoryLift;
 }
+
+/**
+ *  lifted                 — 연결할 관련 경험을 찾아 설명 수준이 올라갔다
+ *  already-reflected      — 이미 현재 근거에 충분히 반영되어 있어 더 올릴 것이 없다
+ *  no-related-experience  — 연결할 만한 실제 경험이 아직 없다 (문장만으로는 오르지 않는다)
+ */
+export type StoryLift = "lifted" | "already-reflected" | "no-related-experience";
+
+export const STORY_LIFT_LABEL: Record<StoryLift, string> = {
+  lifted: "관련 경험을 연결함",
+  "already-reflected": "이미 충분히 반영됨",
+  "no-related-experience": "연결할 경험이 아직 없음",
+};
+
+export const STORY_LIFT_NOTE: Record<StoryLift, string> = {
+  lifted: "이미 가지고 있던 경험에서 이 직무와 연결되는 근거를 찾아 설명 수준이 올라갔습니다.",
+  "already-reflected":
+    "현재 근거에 이미 충분히 반영되어 있어 더 연결할 것이 없습니다. 문장을 고쳐도 값은 오르지 않습니다.",
+  "no-related-experience":
+    "연결할 만한 실제 경험을 찾지 못했습니다. 표현을 바꾸는 것으로는 오르지 않으며, 경험 자체가 필요합니다.",
+};
 
 /** 지원 판단 — 총점 하나로 결정하지 않는다. (기획서 07) */
 export type ApplicationVerdict =
@@ -341,13 +390,48 @@ export interface StoryCard {
   adopted: boolean;
 }
 
-/** 실행 카드에 반드시 들어갈 여섯 가지 (기획서 06) */
+/**
+ * 실행 카드 — **미래 이력서에서 거꾸로 설계한다.**
+ *
+ * 이 앱은 "더 공부하세요"나 강의 목록을 주지 않는다.
+ * 미래 이력서에 쓰고 싶은 문장에서 출발해, 그 문장을 사실로 만들려면
+ * 무엇을 해야 하는지까지 역순으로 내려온다:
+ *
+ *   ① targetSentence      미래 이력서 3에 쓰고 싶은 목표 문장
+ *        ↓
+ *   ② experienceNeeded    그 문장을 사실로 만들기 위해 필요한 경험
+ *        ↓
+ *   ③ actions             지금 수행할 교육·프로젝트·실무 활동
+ *        ↓
+ *   ④ evidence            완료 여부를 보여줄 결과와 증거
+ *        ↓
+ *   ⑤ reassessCriteria    재평가 기준
+ *        ↓
+ *   ⑥ 재평가 통과 시       이력서 3의 [예정] 문장이 이력서 2의 사실 문장으로 옮겨간다
+ *
+ * "출시 경험이 부족하다"에서 멈추지 않고,
+ * *어떤 프로젝트에서 어느 단계를 직접 맡고 어떤 결과를 남겨야*
+ * 이력서에 "출시 경험"이라고 쓸 수 있는지까지 제시해야 한다.
+ */
 export interface ActionCard {
   id: string;
   dimensionId: string;
   /** 1 지금 정리하기 / 2 새 결과물 만들기 / 3 실무 책임 쌓기 */
   priority: 1 | 2 | 3;
-  /** ① 부족한 기대 */
+
+  /**
+   * ① 설계의 출발점 — 이 과제를 마치면 이력서 3에 쓸 수 있게 되는 문장.
+   * 아직 사실이 아니므로 이력서 3에서는 [예정] 으로 표시된다.
+   */
+  targetSentence: string;
+  /** ② 그 문장을 사실로 만들기 위해 필요한 경험 (활동이 아니라 경험의 내용) */
+  experienceNeeded: string;
+  /** 이력서 3에서 이 과제에 대응하는 [예정] 문장 */
+  plannedLineId?: string;
+  /** 재평가를 통과해 이력서 2로 옮겨진 문장 */
+  promotedLineId?: string;
+
+  /** 부족한 기대 */
   gap: string;
   /** ② 현재 → 목표 */
   from: MatchScore;
@@ -382,6 +466,54 @@ export const PRIORITY_DONE_CRITERIA: Record<1 | 2 | 3, string> = {
   3: "진행 기간·본인 책임·성과를 기록하고 재평가한다",
 };
 
+/**
+ * 지원 설득 논리 — "합격 가능성 스토리".
+ *
+ * 이 단계는 매칭 점수를 보여주거나 이력서를 만드는 것으로 끝나지 않는다.
+ * 사용자가 스스로 다음 네 가지를 설명할 수 있어야 한다:
+ *
+ *   1. 이 팀이 나를 검토할 이유는 무엇인가?          → reasonsToConsider
+ *   2. 어떤 부분을 우려할 수 있는가?                 → concerns[].concern
+ *   3. 그 우려에 내 경험으로 어떻게 답할 수 있는가?   → concerns[].response
+ *   4. 어떤 조건이라면 지금 지원을 검토할 만한가?     → conditions
+ *
+ * 숫자와 이야기를 섞지 않는다.
+ *   숫자   = 요구사항과의 **매칭률**
+ *   이야기 = 강점·우려·전제 조건을 설명하는 **판단**
+ * 채용 가능성을 확률로 표현하지 않고, 실제 팀장의 판단을 확인한 것처럼 쓰지도 않는다.
+ */
+export interface CandidacyCase {
+  /**
+   * now    — 지금 이력서 2로 지원한다면
+   * future — 실행 과제를 완료하고 이력서 3의 내용이 사실이 된다면
+   */
+  stage: "now" | "future";
+  /** 이 팀이 나를 검토할 이유를 한 문장으로 */
+  headline: string;
+  /** 검토할 이유 — 모집팀의 기대와 직접 맞물리는 근거 */
+  reasonsToConsider: string[];
+  /** 우려와, 그 우려에 답하는 방법 */
+  concerns: CandidacyConcern[];
+  /** 어떤 조건이라면 지금 지원을 검토할 만한가 (예: 동등 경력 인정 여부 확인) */
+  conditions: string[];
+  /**
+   * 이 이야기를 어떻게 읽어야 하는지.
+   * 실제 채용 결과를 예측한 것이 아님을 여기서 분명히 한다.
+   */
+  caution: string;
+}
+
+export interface CandidacyConcern {
+  /** 모집팀이 우려할 수 있는 부분 */
+  concern: string;
+  /** 내 실제 경험으로 답하는 방법 — 없는 사실을 만들지 않는다 */
+  response: string;
+  /** 답의 근거가 되는 경험 */
+  evidenceIds: string[];
+  /** 답해도 여전히 남는 한계. 이걸 빼면 설득이 아니라 변명이 된다. */
+  honestLimit: string;
+}
+
 /** 결과물 02 · 지원전략 분석서 */
 export interface StrategyReport {
   id: string;
@@ -397,6 +529,13 @@ export interface StrategyReport {
   verdictNote: string;
   /** 필수 조건 충족 여부 — 총점과 별개의 정보 (기획서 04) */
   mustHaveStatus: MustHaveStatus[];
+  /**
+   * 지금 이력서 2로 지원한다면 — 이 팀이 나를 검토할 이유와 우려, 그리고 답.
+   * 이력서 3을 완성할 때까지 지원을 미루게 하지 않기 위해, 현재 지원 논리를 독립 결과로 둔다.
+   */
+  candidacyNow: CandidacyCase;
+  /** 실행 과제를 마치고 이력서 3의 내용이 사실이 된다면 */
+  candidacyFuture: CandidacyCase;
   /** 읽는 법 안내 */
   readingNote: string;
   /** 기본 비공개 (기획서 07) */

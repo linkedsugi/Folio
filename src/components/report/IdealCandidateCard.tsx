@@ -5,6 +5,7 @@
  * 네 가지를 고정으로 담는다: 핵심 역할 / 책임 수준 / 필수·우대 / 판단 근거.
  */
 import {
+  REQUIREMENT_DERIVATION_LABEL,
   RESPONSIBILITY_LEVEL_LABEL,
   type IdealCandidate,
   type Requirement,
@@ -60,6 +61,17 @@ export function IdealCandidateCard({
             <ReqList items={must} kind="must" />
             <ReqList items={preferred} kind="preferred" />
           </div>
+          {/*
+            공고에 적힌 조건과, 앱이 읽어낸 해석은 다른 무게를 가진다.
+            해석이 유용하더라도 사실과 같은 자리에 놓으면 안 된다.
+          */}
+          {requirements.some((r) => r.derivation === "inferred") ? (
+            <p className="mt-2 rounded-sm bg-surface px-2 py-1 text-[11px] leading-snug text-ink-muted">
+              <span className="font-semibold text-ink">읽는 법</span> — 점선 테두리 항목은 공고에
+              직접 적힌 조건이 아니라, 업무 설명에서 앱이 읽어낸 해석입니다. 모집팀의 공식 요건과는
+              다를 수 있습니다.
+            </p>
+          ) : null}
         </Row>
 
         {compact ? null : (
@@ -125,12 +137,18 @@ function ReqList({ items, kind }: { items: Requirement[]; kind: "must" | "prefer
           <li
             key={r.id}
             className={[
-              "rounded-sm border px-1.5 py-0.5 text-[12px]",
+              "rounded-sm px-1.5 py-0.5 text-[12px]",
+              // 해석으로 만든 조건은 점선으로 구분한다.
+              r.derivation === "inferred" ? "border border-dashed" : "border",
               kind === "must"
                 ? "border-rule-strong bg-surface-sunken font-medium text-ink"
                 : "border-rule bg-canvas text-ink-muted",
             ].join(" ")}
-            title={r.text}
+            title={
+              r.derivation === "inferred"
+                ? `${REQUIREMENT_DERIVATION_LABEL[r.derivation]} — ${r.inferenceNote ?? r.text}`
+                : `${REQUIREMENT_DERIVATION_LABEL[r.derivation]} — ${r.text}`
+            }
           >
             {r.label}
             {/* 동등 경험 인정 여부는 지원 판단을 바꾸므로 조건 옆에 바로 붙인다. */}
