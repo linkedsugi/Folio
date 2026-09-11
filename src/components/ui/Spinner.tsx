@@ -27,7 +27,7 @@ export function Spinner({ label = "불러오는 중", showLabel, size = "md", cl
           SIZE[size],
         )}
       />
-      <span className={showLabel ? "text-[12px] text-ink-muted" : "sr-only"}>{label}</span>
+      <span className={showLabel ? "text-[13px] text-ink-muted" : "sr-only"}>{label}</span>
     </span>
   );
 }

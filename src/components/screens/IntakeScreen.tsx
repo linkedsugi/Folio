@@ -139,18 +139,18 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
   }
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-2">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* ── 좌: 공고 ── */}
         <Panel
           step="1"
           title="채용공고"
           lead="지원할 공고 하나의 본문이 필요합니다. 광고·메뉴는 빼고 본문만 넣어 주세요."
         >
-          <label className="block text-[12px] font-semibold text-ink" htmlFor="jd-url">
+          <label className="block text-[13px] font-semibold text-ink" htmlFor="jd-url">
             채용공고 URL
           </label>
-          <div className="mt-1 flex gap-1.5">
+          <div className="mt-2 flex gap-2">
             <input
               id="jd-url"
               type="url"
@@ -158,22 +158,22 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
               placeholder="https://..."
               value={value.jdUrl}
               onChange={(e) => onChange({ jdUrl: e.target.value })}
-              className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-2 py-1.5 text-[13px]"
+              className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-3.5 py-2.5 text-[14px]"
             />
             <button
               type="button"
               onClick={fetchJd}
               disabled={fetching || !value.jdUrl.trim()}
-              className="shrink-0 rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
+              className="shrink-0 rounded-sm border border-rule-strong bg-canvas px-3.5 py-2 text-[13px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
             >
               {fetching ? "가져오는 중…" : "가져오기"}
             </button>
           </div>
 
           {candidates.length > 1 ? (
-            <fieldset className="mt-2 rounded-sm border border-rule bg-surface p-2">
-              <legend className="px-1 text-[11px] font-semibold text-ink">지원할 공고 선택</legend>
-              <ul className="space-y-1">
+            <fieldset className="mt-3 rounded-sm border border-rule bg-surface p-3">
+              <legend className="px-1 text-[12px] font-semibold text-ink">지원할 공고 선택</legend>
+              <ul className="space-y-1.5">
                 {candidates.map((c, i) => (
                   <li key={i}>
                     <button
@@ -183,7 +183,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
                         setCandidates([]);
                         setJdNotice({ tone: "ok", text: `“${c.title}” 공고를 선택했습니다.` });
                       }}
-                      className="w-full rounded-sm px-2 py-1 text-left text-[12px] text-ink hover:bg-brand-soft"
+                      className="w-full rounded-sm px-3 py-2 text-left text-[13px] text-ink hover:bg-brand-soft"
                     >
                       {c.title}
                     </button>
@@ -195,16 +195,20 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
 
           <NoticeLine notice={jdNotice} />
 
-          <label className="mt-3 block text-[12px] font-semibold text-ink" htmlFor="jd-text">
+          {/*
+            붙여넣기 칸은 이 화면의 본체다. 공고 전문은 길고, 칸이 작으면 무엇을 넣었는지
+            확인하지 못한 채 다음으로 넘어가게 된다. 줄 수와 글자 크기를 함께 키운다.
+          */}
+          <label className="mt-5 block text-[13px] font-semibold text-ink" htmlFor="jd-text">
             공고 본문
           </label>
           <textarea
             id="jd-text"
             value={value.jdText}
             onChange={(e) => onChange({ jdText: e.target.value })}
-            rows={14}
+            rows={18}
             placeholder={"모집 부문, 주요 업무, 자격 요건, 우대 사항을 그대로 붙여넣어 주세요."}
-            className="mt-1 w-full rounded-sm border border-rule-strong bg-canvas px-2.5 py-2 font-mono text-[12px] leading-relaxed"
+            className="mt-2 w-full rounded-sm border border-rule-strong bg-canvas px-4 py-3 font-mono text-[14px] leading-relaxed"
           />
           <FileRow
             id="jd-file"
@@ -221,7 +225,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
           title="내 이력"
           lead="직장 경력만이 아닙니다. 학위·수업·논문·인턴·대회·개인 프로젝트·자격·교육·오픈소스·봉사까지 넣어 주세요."
         >
-          <label className="block text-[12px] font-semibold text-ink" htmlFor="profile-name">
+          <label className="block text-[13px] font-semibold text-ink" htmlFor="profile-name">
             이름
           </label>
           <input
@@ -229,21 +233,21 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
             value={value.profileName}
             onChange={(e) => onChange({ profileName: e.target.value })}
             placeholder="이력서에 쓸 이름"
-            className="mt-1 w-full rounded-sm border border-rule-strong bg-canvas px-2 py-1.5 text-[13px]"
+            className="mt-2 w-full rounded-sm border border-rule-strong bg-canvas px-3.5 py-2.5 text-[14px]"
           />
 
-          <label className="mt-3 block text-[12px] font-semibold text-ink" htmlFor="profile-text">
+          <label className="mt-5 block text-[13px] font-semibold text-ink" htmlFor="profile-text">
             이력 내용
           </label>
           <textarea
             id="profile-text"
             value={value.profileText}
             onChange={(e) => onChange({ profileText: e.target.value })}
-            rows={14}
+            rows={18}
             placeholder={
               "예)\n루멘플레이 · Unity 개발자 · 2025.09 ~ 2026.08\n- 퀘스트 UI와 데이터 연동 기능 구현\n- 기획·아트·QA와 협업하여 업데이트 2회 참여\n\n컴퓨터공학 학사 · 2019.03 ~ 2023.02"
             }
-            className="mt-1 w-full rounded-sm border border-rule-strong bg-canvas px-2.5 py-2 font-mono text-[12px] leading-relaxed"
+            className="mt-2 w-full rounded-sm border border-rule-strong bg-canvas px-4 py-3 font-mono text-[14px] leading-relaxed"
           />
           <FileRow
             id="profile-file"
@@ -260,7 +264,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
         </Panel>
       </div>
 
-      <div className="space-y-3 rounded-sm border border-rule bg-canvas px-4 py-3">
+      <div className="space-y-4 rounded-sm border border-rule bg-canvas px-5 py-5 shadow-card">
         {/* 자료가 어디로 가는지는 시작 버튼을 누르기 직전에 읽어야 한다. */}
         {consent ? (
           <PrecisionConsent
@@ -273,7 +277,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="min-w-0 text-[12px] leading-snug text-ink-muted">
+          <p className="min-w-0 text-[13px] leading-snug text-ink-muted">
             {ready
               ? "두 자료가 준비되었습니다. 공고에서 인재상과 요구 조건을, 이력에서 경험을 정리합니다."
               : "공고 본문과 내 이력을 모두 넣어야 분석을 시작할 수 있습니다."}
@@ -282,7 +286,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: Intak
             type="button"
             onClick={onSubmit}
             disabled={!ready || busy}
-            className="shrink-0 rounded-sm bg-ink px-4 py-2 text-[13px] font-bold text-white disabled:bg-rule-strong"
+            className="w-full shrink-0 rounded-sm bg-ink px-6 py-3.5 text-[16px] font-bold text-white shadow-card transition-shadow hover:shadow-raised disabled:bg-rule-strong disabled:shadow-none sm:w-auto"
           >
             {busy ? "분석 중…" : "분석 시작"}
           </button>
@@ -304,13 +308,13 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-sm border border-rule bg-canvas">
-      <header className="border-b border-rule bg-surface-sunken px-4 py-2.5">
-        <p className="text-[11px] font-semibold tracking-wide text-brand">{step} 단계</p>
-        <h2 className="text-sm font-bold text-ink">{title}</h2>
-        <p className="mt-0.5 text-[11px] leading-snug text-ink-muted">{lead}</p>
+    <section className="rounded-sm border border-rule bg-canvas shadow-card">
+      <header className="border-b border-rule bg-surface-sunken px-5 py-4">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">{step} 단계</p>
+        <h2 className="mt-0.5 text-[17px] font-bold text-ink">{title}</h2>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-muted">{lead}</p>
       </header>
-      <div className="px-4 py-3">{children}</div>
+      <div className="px-5 py-5">{children}</div>
     </section>
   );
 }
@@ -324,7 +328,7 @@ function NoticeLine({ notice }: { notice: Notice }) {
         ? "bg-ok-soft text-ok"
         : "bg-brand-soft text-brand";
   return (
-    <p role="status" className={`mt-2 rounded-sm px-2 py-1.5 text-[12px] leading-snug ${tone}`}>
+    <p role="status" className={`mt-3 rounded-sm px-3.5 py-2.5 text-[13px] leading-relaxed ${tone}`}>
       {notice.text}
     </p>
   );
@@ -342,10 +346,10 @@ function FileRow({
   onFile: (f: File) => void;
 }) {
   return (
-    <div className="mt-2">
+    <div className="mt-3">
       <label
         htmlFor={id}
-        className="inline-block cursor-pointer rounded-sm border border-dashed border-rule-strong px-2.5 py-1.5 text-[12px] text-ink-muted hover:border-ink hover:text-ink"
+        className="inline-block cursor-pointer rounded-sm border border-dashed border-rule-strong px-3.5 py-2 text-[13px] text-ink-muted hover:border-ink hover:text-ink"
       >
         {busy ? "읽는 중…" : label}
       </label>
@@ -375,11 +379,11 @@ function LinkField({
 }) {
   const [draft, setDraft] = useState("");
   return (
-    <div className="mt-3">
-      <label className="block text-[12px] font-semibold text-ink" htmlFor="profile-link">
+    <div className="mt-5">
+      <label className="block text-[13px] font-semibold text-ink" htmlFor="profile-link">
         프로필 주소 (선택)
       </label>
-      <div className="mt-1 flex gap-1.5">
+      <div className="mt-2 flex gap-2">
         <input
           id="profile-link"
           type="url"
@@ -387,7 +391,7 @@ function LinkField({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="https://linkedin.com/in/…"
-          className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-2 py-1.5 text-[13px]"
+          className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-3.5 py-2.5 text-[14px]"
         />
         <button
           type="button"
@@ -396,23 +400,23 @@ function LinkField({
             setDraft("");
           }}
           disabled={!draft.trim()}
-          className="shrink-0 rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
+          className="shrink-0 rounded-sm border border-rule-strong bg-canvas px-3.5 py-2 text-[13px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
         >
           추가
         </button>
       </div>
       {links.length > 0 ? (
-        <ul className="mt-1.5 space-y-1">
+        <ul className="mt-2.5 space-y-1.5">
           {links.map((l, i) => (
             <li
               key={`${l.url}-${i}`}
-              className="flex items-center gap-2 rounded-sm bg-surface px-2 py-1 text-[12px]"
+              className="flex items-center gap-3 rounded-sm bg-surface px-3 py-2 text-[13px]"
             >
               <span className="font-medium text-ink">{l.label}</span>
               <span className="min-w-0 flex-1 truncate text-ink-muted">{l.url}</span>
               {/* 내용을 확보하지 못했다는 사실을 그대로 표시한다. */}
               {l.status === "link-only" ? (
-                <span className="shrink-0 rounded-sm bg-warn-soft px-1 text-[10px] font-medium text-warn">
+                <span className="shrink-0 rounded-sm bg-warn-soft px-1.5 py-0.5 text-[11px] font-medium text-warn">
                   링크만 저장됨
                 </span>
               ) : null}
@@ -428,7 +432,7 @@ function LinkField({
           ))}
         </ul>
       ) : null}
-      <p className="mt-1 text-[11px] leading-snug text-ink-faint">
+      <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
         링크는 저장하되 내용을 자동으로 가져오지 못할 수 있습니다. 그때는 텍스트나 파일로 이어서
         진행하세요.
       </p>
@@ -439,7 +443,7 @@ function LinkField({
 function CharCount({ value, min }: { value: string; min: number }) {
   const n = value.trim().length;
   return (
-    <p className="tabular mt-1.5 text-right text-[11px] text-ink-faint">
+    <p className="tabular mt-2.5 text-right text-[12px] text-ink-faint">
       {n.toLocaleString("ko-KR")}자{n < min ? ` · 최소 ${min}자 필요` : ""}
     </p>
   );

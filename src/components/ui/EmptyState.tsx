@@ -19,17 +19,17 @@ export function EmptyState({ title, description, action, className }: EmptyState
   return (
     <div
       className={clsx(
-        "rounded-sm border border-dashed border-rule-strong bg-canvas px-4 py-6 text-center",
+        "rounded-sm border border-dashed border-rule-strong bg-canvas px-5 py-8 text-center",
         className,
       )}
     >
-      <p className="text-[13px] font-bold text-ink">{title}</p>
+      <p className="text-[14px] font-bold text-ink">{title}</p>
       {description ? (
-        <p className="mx-auto mt-1 max-w-prose text-[12px] leading-relaxed text-ink-muted">
+        <p className="mx-auto mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-muted">
           {description}
         </p>
       ) : null}
-      {action ? <div className="mt-3 flex justify-center">{action}</div> : null}
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }

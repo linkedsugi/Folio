@@ -25,9 +25,14 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger: "border-danger bg-danger-soft text-danger enabled:hover:bg-danger enabled:hover:text-white",
 };
 
+/*
+ * 손가락으로 누르는 크기를 먼저 정하고 글자를 맞춘다.
+ * 지원 준비는 휴대폰으로도 하는 일인데, 잘못 눌러 되돌리는 경험이 쌓이면
+ * 화면 자체를 불신하게 된다. sm 도 40px 아래로는 내려가지 않게 min-h 로 바닥을 깐다.
+ */
 const SIZE: Record<ButtonSize, string> = {
-  sm: "px-2.5 py-1 text-[12px]",
-  md: "px-3.5 py-2 text-[13px]",
+  sm: "min-h-10 px-3.5 py-2 text-[13px]",
+  md: "min-h-11 px-5 py-2.5 text-[14px]",
 };
 
 export function Button({
@@ -43,7 +48,7 @@ export function Button({
       // 폼 안에서 실수로 제출되지 않도록 기본값은 언제나 button 이다.
       type={type}
       className={clsx(
-        "inline-flex items-center justify-center gap-1.5 rounded-sm border font-semibold transition-colors",
+        "inline-flex items-center justify-center gap-2 rounded-sm border font-semibold transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
         VARIANT[variant],
         SIZE[size],

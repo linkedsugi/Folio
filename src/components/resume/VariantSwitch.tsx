@@ -42,11 +42,11 @@ export function VariantSwitch({
   const meta = RESUME_VARIANT_META[active];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div
         role="tablist"
         aria-label="이력서 판본"
-        className="grid grid-cols-3 gap-1.5"
+        className="grid grid-cols-3 gap-2"
       >
         {VARIANTS.map((v) => {
           const m = RESUME_VARIANT_META[v];
@@ -59,15 +59,15 @@ export function VariantSwitch({
               aria-selected={on}
               type="button"
               onClick={() => onSelect(v)}
-              className={`rounded-sm border px-2 py-2 text-left transition-colors ${on ? TONE[v].on : TONE[v].off}`}
+              className={`rounded-sm border px-3 py-3 text-left transition-colors ${on ? TONE[v].on : TONE[v].off}`}
             >
-              <span className="block text-[11px] leading-tight font-semibold opacity-90">
+              <span className="block text-[12px] leading-tight font-semibold opacity-90">
                 {m.title}
               </span>
-              <span className="tabular mt-0.5 block text-lg leading-none font-bold">
+              <span className="tabular mt-1 block text-lg leading-none font-bold">
                 {doc.narrative.matchScore}%
               </span>
-              <span className="mt-0.5 block text-[10px] leading-tight opacity-80">
+              <span className="mt-1 block text-[11px] leading-tight opacity-80">
                 {STAGE_META[m.matchStage].title}
               </span>
             </button>
@@ -77,7 +77,7 @@ export function VariantSwitch({
 
       <div
         className={[
-          "rounded-sm border px-3 py-2 text-[12px] leading-snug",
+          "rounded-sm border px-4 py-3 text-[13px] leading-relaxed",
           active === "future"
             ? "border-goal-rule bg-goal-soft text-goal"
             : "border-rule bg-surface text-ink-muted",
@@ -88,7 +88,7 @@ export function VariantSwitch({
         </p>
 
         {meta.submittable && onSubmitVariantChange ? (
-          <label className="mt-1.5 flex items-center gap-1.5 text-ink">
+          <label className="mt-2.5 flex items-center gap-2 text-ink">
             <input
               type="radio"
               name="submit-variant"
@@ -112,36 +112,36 @@ export function NarrativePanel({ set }: { set: ResumeSet }) {
 
   return (
     <section className="rounded-sm border border-rule bg-canvas">
-      <header className="border-b border-rule px-4 py-2.5">
-        <p className="text-[11px] font-semibold tracking-wide text-brand">
+      <header className="border-b border-rule px-5 py-3">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">
           이 판본을 냈을 때 — {STAGE_META[meta.matchStage].title} {n.matchScore}%
         </p>
-        <p className="mt-1 text-sm leading-snug font-bold text-ink">{n.headline}</p>
+        <p className="mt-1.5 text-[16px] leading-relaxed font-bold text-ink">{n.headline}</p>
       </header>
       <div className="divide-y divide-rule">
         <Row label="모집팀이 읽어낼 것">
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {n.readsAs.map((s, i) => (
-              <li key={i} className="text-[13px]">
+              <li key={i} className="text-[14px] leading-relaxed">
                 · {s}
               </li>
             ))}
           </ul>
         </Row>
         <Row label="그래도 남는 차이">
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {n.remainingGap.map((s, i) => (
-              <li key={i} className="text-[13px] text-warn">
+              <li key={i} className="text-[14px] leading-relaxed text-warn">
                 · {s}
               </li>
             ))}
           </ul>
         </Row>
         <Row label="면접에서">
-          <p className="text-[13px] leading-relaxed text-ink-muted">{n.interviewAngle}</p>
+          <p className="text-[14px] leading-relaxed text-ink-muted">{n.interviewAngle}</p>
         </Row>
         {n.caution ? (
-          <div className="bg-goal-soft px-4 py-2.5 text-[12px] leading-snug text-goal">
+          <div className="bg-goal-soft px-5 py-3 text-[13px] leading-relaxed text-goal">
             {n.caution}
           </div>
         ) : null}
@@ -152,8 +152,8 @@ export function NarrativePanel({ set }: { set: ResumeSet }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1 px-4 py-2.5 sm:grid-cols-[7rem_1fr] sm:gap-4">
-      <p className="text-[11px] font-semibold tracking-wide text-ink-faint sm:pt-0.5">{label}</p>
+    <div className="grid gap-1.5 px-5 py-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5">
+      <p className="text-[12px] font-semibold tracking-wide text-ink-faint sm:pt-0.5">{label}</p>
       <div className="min-w-0">{children}</div>
     </div>
   );

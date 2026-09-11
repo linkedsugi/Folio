@@ -22,7 +22,7 @@ export function ScoreTriad({ overall, active }: ScoreTriadProps) {
   return (
     <section
       aria-label="직무 매칭률 3단계"
-      className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-0"
+      className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-0"
     >
       {MATCH_STAGES.map((stage, i) => {
         const meta = STAGE_META[stage];
@@ -37,7 +37,7 @@ export function ScoreTriad({ overall, active }: ScoreTriadProps) {
             {i > 0 ? (
               <span
                 aria-hidden
-                className="hidden shrink-0 items-center px-2 text-ink-faint sm:flex"
+                className="hidden shrink-0 items-center px-3 text-ink-faint sm:flex"
               >
                 →
               </span>
@@ -48,21 +48,24 @@ export function ScoreTriad({ overall, active }: ScoreTriadProps) {
               title={meta.meaning}
               aria-current={isActive ? "true" : undefined}
               className={clsx(
-                "min-w-0 rounded-sm border-2 bg-canvas px-4 py-3 sm:flex-1",
+                // 이 앱에서 가장 오래 쳐다보는 숫자다. 판 자체에 여백을 넉넉히 줘서
+                // 세 단계를 훑는 동안 눈이 쫓기지 않게 한다.
+                "min-w-0 rounded-sm border-2 bg-canvas px-5 py-5 sm:flex-1 sm:px-6",
                 isActive ? tone.border : "border-rule",
               )}
             >
-              <p className={clsx("text-[12px] font-semibold", tone.text)}>{meta.title}</p>
+              <p className={clsx("text-[13px] font-semibold", tone.text)}>{meta.title}</p>
 
-              <p className={clsx("tabular mt-0.5 leading-none font-bold", tone.text)}>
+              {/* 숫자가 단계 이름·설명을 깔고 앉지 않도록 위아래로 띄운다. */}
+              <p className={clsx("tabular mt-2 leading-none font-bold", tone.text)}>
                 <span className="text-4xl">{value}</span>
                 <span className="text-xl">%</span>
               </p>
 
-              <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">{meta.caption}</p>
+              <p className="mt-3 text-[13px] leading-snug text-ink-muted">{meta.caption}</p>
 
               {i > 0 ? (
-                <p className="tabular mt-0.5 text-[11px] leading-snug text-ink-faint">
+                <p className="tabular mt-1.5 text-[12px] leading-snug text-ink-faint">
                   현재 대비 {delta > 0 ? `+${delta}` : delta}%p
                 </p>
               ) : null}

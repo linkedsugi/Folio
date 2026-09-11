@@ -114,24 +114,26 @@ export function MappingScreen({
   const doc = resumes[variant];
 
   return (
-    <div className="space-y-6">
+    // space-y-10: 이 화면에는 인재상·수치·부문표·설득 논리·스토리·결과물이 모두 올라온다.
+    // 구역 사이가 가까우면 하나의 긴 표로 읽혀 "지금 보고 있는 결과"가 무엇인지 흐려진다.
+    <div className="space-y-10">
       <header>
-        <p className="text-[11px] font-semibold tracking-wide text-brand">{head.eyebrow}</p>
-        <h1 className="mt-0.5 text-xl leading-tight font-bold text-ink sm:text-2xl">{head.title}</h1>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{head.lead}</p>
+        <p className="text-[12px] font-semibold tracking-wide text-brand">{head.eyebrow}</p>
+        <h1 className="mt-1.5 text-xl leading-tight font-bold text-ink sm:text-2xl">{head.title}</h1>
+        <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-ink-muted">{head.lead}</p>
       </header>
 
       {/* 상단: 모집팀이 원하는 사람 한 문장 */}
-      <div className="rounded-sm border border-rule bg-canvas px-4 py-3">
-        <p className="text-[11px] font-semibold tracking-wide text-brand">모집팀의 인재상</p>
-        <p className="mt-0.5 text-sm leading-snug font-bold text-ink">
+      <div className="rounded-sm border border-rule bg-canvas px-5 py-5 shadow-card sm:px-6 sm:py-6">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">모집팀의 인재상</p>
+        <p className="mt-2 text-[17px] leading-relaxed font-bold text-ink">
           {report.idealCandidate.oneLine}
         </p>
         {/*
           조건을 한 줄에 모두 이어 붙이면 회색 덩어리가 되어 아무도 읽지 않는다.
           여기서는 개수만 알리고, 실제 조건은 아래 표에서 부문별로 본다.
         */}
-        <p className="mt-1 text-[11px] leading-snug text-ink-faint">
+        <p className="mt-3 text-[12px] leading-relaxed text-ink-faint">
           {posting.company}
           {posting.team ? ` · ${posting.team}` : ""} · {posting.roleTitle} · 필수{" "}
           {posting.requirements.filter((r) => r.kind === "must").length}개 · 우대{" "}
@@ -144,14 +146,14 @@ export function MappingScreen({
 
       {/* 하단: 부문별 변화·활용할 경험·이후 과제·목표를 나란히 비교 */}
       <section>
-        <h2 className="mb-2 text-[15px] font-bold text-ink">부문별 비교</h2>
+        <h2 className="mb-4 text-lg font-bold text-ink">부문별 비교</h2>
         <MatchTable
           dimensions={report.dimensions}
           onSelect={(id) => setSelected(id === selected ? null : id)}
           selectedId={selected}
           emphasize={activeStage}
         />
-        <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
+        <p className="mt-3 text-[12px] leading-relaxed text-ink-faint">
           부문별 점수를 누르면 “팀의 기대 / 반영한 내 경험 / 점수의 이유 / 남는 차이”를 보여줍니다.
           전체는 부문 중요도를 반영한 값이며, 회사의 내부 배점이 아닙니다.
         </p>
@@ -175,10 +177,10 @@ export function MappingScreen({
       ) : null}
 
       {stage === "story" ? (
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div>
-            <h2 className="text-[15px] font-bold text-ink">이 팀이 지금 나를 검토할 이유</h2>
-            <p className="text-[12px] text-ink-muted">
+            <h2 className="text-lg font-bold text-ink">이 팀이 지금 나를 검토할 이유</h2>
+            <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-ink-muted">
               매칭률은 요구사항과의 대응 정도이고, 아래는 강점·우려·전제 조건에 대한 판단입니다.
               이력서 3을 완성할 때까지 지원을 미룰 필요는 없습니다.
             </p>
@@ -188,10 +190,10 @@ export function MappingScreen({
       ) : null}
 
       {stage === "plan" ? (
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div>
-            <h2 className="text-[15px] font-bold text-ink">과제를 마쳤다면 어떤 지원자가 되는가</h2>
-            <p className="text-[12px] text-ink-muted">
+            <h2 className="text-lg font-bold text-ink">과제를 마쳤다면 어떤 지원자가 되는가</h2>
+            <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-ink-muted">
               아래 문장들이 사실이 되었을 때의 설명입니다. 지금 면접에서 완료된 경험처럼 말하면
               안 됩니다.
             </p>
@@ -201,15 +203,15 @@ export function MappingScreen({
       ) : null}
 
       {stage === "story" && movedStories.length > 0 ? (
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div>
-            <h2 className="text-[15px] font-bold text-ink">한 항목은 하나의 이야기로</h2>
-            <p className="text-[12px] text-ink-muted">
+            <h2 className="text-lg font-bold text-ink">한 항목은 하나의 이야기로</h2>
+            <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-ink-muted">
               팀의 기대 → 활용할 내 경험 → 이 직무와의 공통점 → 실제 증거 → 이력서 문장·면접 답변 →
               여전히 남는 차이
             </p>
           </div>
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             {movedStories.map((s) => (
               <StoryCardView
                 key={s.id}
@@ -222,11 +224,11 @@ export function MappingScreen({
       ) : null}
 
       {stage === "plan" && openActions.length > 0 ? (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-2">
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-[15px] font-bold text-ink">실행 순서</h2>
-              <p className="text-[12px] text-ink-muted">
+              <h2 className="text-lg font-bold text-ink">실행 순서</h2>
+              <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-ink-muted">
                 1 지금 정리하기 → 2 새 결과물 만들기 → 3 실무 책임 쌓기
               </p>
             </div>
@@ -234,7 +236,7 @@ export function MappingScreen({
               <button
                 type="button"
                 onClick={onReassess}
-                className="rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink"
+                className="rounded-sm border border-rule-strong bg-canvas px-3.5 py-2 text-[13px] font-medium text-ink hover:border-ink"
               >
                 새 근거로 재평가
               </button>
@@ -242,11 +244,11 @@ export function MappingScreen({
           </div>
 
           {reassessIgnored && reassessIgnored.length > 0 ? (
-            <div className="rounded-sm border border-warn-soft bg-warn-soft px-3 py-2">
-              <p className="text-[12px] font-bold text-warn">재평가에 반영하지 않은 과제</p>
-              <ul className="mt-1 space-y-0.5">
+            <div className="rounded-sm border border-warn-soft bg-warn-soft px-4 py-3.5">
+              <p className="text-[13px] font-bold text-warn">재평가에 반영하지 않은 과제</p>
+              <ul className="mt-2 space-y-1">
                 {reassessIgnored.map((i) => (
-                  <li key={i.actionId} className="text-[12px] text-warn">
+                  <li key={i.actionId} className="text-[13px] text-warn">
                     · {i.reason}
                   </li>
                 ))}
@@ -254,7 +256,7 @@ export function MappingScreen({
             </div>
           ) : null}
 
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             {openActions.map((a) => (
               <ActionCardView
                 key={a.id}
@@ -270,13 +272,13 @@ export function MappingScreen({
       ) : null}
 
       {/* 이 단계의 결과물 — 이력서 판본 */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold tracking-wide text-brand">이 단계의 결과물</p>
-            <h2 className="text-[15px] font-bold text-ink">
+            <p className="text-[12px] font-semibold tracking-wide text-brand">이 단계의 결과물</p>
+            <h2 className="mt-1 text-lg font-bold text-ink">
               {RESUME_VARIANT_META[variant].title}
-              <span className="ml-2 text-[12px] font-normal text-ink-muted">
+              <span className="ml-2 text-[13px] font-normal text-ink-muted">
                 {STAGE_META[activeStage].title} {doc.narrative.matchScore}%
               </span>
             </h2>
@@ -284,7 +286,7 @@ export function MappingScreen({
           <button
             type="button"
             onClick={() => setShowResume((v) => !v)}
-            className="rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink"
+            className="rounded-sm border border-rule-strong bg-canvas px-3.5 py-2 text-[13px] font-medium text-ink hover:border-ink"
           >
             {showResume ? "지면 접기" : "지면 미리보기"}
           </button>
@@ -293,22 +295,22 @@ export function MappingScreen({
         <NarrativePanel set={{ ...resumes, active: variant }} />
 
         {showResume ? (
-          <div className="overflow-x-auto rounded-sm bg-surface-sunken p-3">
+          <div className="overflow-x-auto rounded-sm bg-surface-sunken p-4">
             <ResumeDocumentView doc={doc} />
           </div>
         ) : null}
       </section>
 
-      <footer className="space-y-2">
-        <p className="text-[11px] leading-relaxed text-ink-faint">읽는 법: {READING_NOTE}</p>
-        <p className="text-[11px] leading-relaxed text-ink-faint">
+      <footer className="space-y-4 border-t border-rule pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-faint">읽는 법: {READING_NOTE}</p>
+        <p className="text-[12px] leading-relaxed text-ink-faint">
           {weightSummary(report.dimensions, report.overall)}
         </p>
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end pt-2">
           <button
             type="button"
             onClick={onNext}
-            className="rounded-sm bg-ink px-4 py-2 text-[13px] font-bold text-white"
+            className="w-full rounded-sm bg-ink px-6 py-3.5 text-[16px] font-bold text-white shadow-card transition-shadow hover:shadow-raised sm:w-auto"
           >
             {nextLabel}
           </button>

@@ -51,14 +51,14 @@ export function ReviewScreen({
   const answered = questions.filter((q) => q.answerState !== "unanswered").length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {openFlags.length > 0 ? (
-        <section className="rounded-sm border border-warn-soft bg-warn-soft px-4 py-3">
-          <h2 className="text-[13px] font-bold text-warn">확인이 더 필요한 부분</h2>
-          <p className="mt-0.5 text-[11px] leading-snug text-warn">
+        <section className="rounded-sm border border-warn-soft bg-warn-soft px-5 py-4">
+          <h2 className="text-[16px] font-bold text-warn">확인이 더 필요한 부분</h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-warn">
             자료에 없는 것은 지어내지 않고 이렇게 남겨 둡니다. 확인하면 분석이 정확해집니다.
           </p>
-          <ul className="mt-2 space-y-1.5">
+          <ul className="mt-3 space-y-2">
             {openFlags.map(({ scope, f }) => (
               <FlagRow key={f.id} flag={f} onResolve={() => onResolveFlag(scope, f.id)} />
             ))}
@@ -66,31 +66,31 @@ export function ReviewScreen({
         </section>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <SectionTitle n="2-1" title="공고에서 읽은 것" />
-          <div className="rounded-sm border border-rule bg-canvas px-4 py-3">
-            <dl className="grid gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-[5rem_1fr]">
-              <dt className="text-[11px] font-semibold text-ink-faint">회사·팀</dt>
+          <div className="rounded-sm border border-rule bg-canvas px-5 py-4">
+            <dl className="grid gap-x-4 gap-y-1.5 text-[14px] sm:grid-cols-[5rem_1fr]">
+              <dt className="text-[12px] font-semibold text-ink-faint">회사·팀</dt>
               <dd className="font-medium text-ink">
                 {posting.company}
                 {posting.team ? ` · ${posting.team}` : ""}
               </dd>
-              <dt className="text-[11px] font-semibold text-ink-faint">직무</dt>
+              <dt className="text-[12px] font-semibold text-ink-faint">직무</dt>
               <dd className="font-medium text-ink">{posting.roleTitle}</dd>
               {posting.documentRules?.note ? (
                 <>
-                  <dt className="text-[11px] font-semibold text-ink-faint">문서 조건</dt>
+                  <dt className="text-[12px] font-semibold text-ink-faint">문서 조건</dt>
                   <dd className="text-warn">{posting.documentRules.note}</dd>
                 </>
               ) : null}
             </dl>
             {posting.responsibilities.length > 0 ? (
               <div className="mt-3">
-                <p className="text-[11px] font-semibold text-ink-faint">주요 업무</p>
+                <p className="text-[12px] font-semibold text-ink-faint">주요 업무</p>
                 <ul className="mt-1 space-y-0.5">
                   {posting.responsibilities.map((r, i) => (
-                    <li key={i} className="text-[13px]">
+                    <li key={i} className="text-[14px]">
                       · {r}
                     </li>
                   ))}
@@ -109,14 +109,14 @@ export function ReviewScreen({
       </div>
 
       {questions.length > 0 ? (
-        <section className="space-y-3">
+        <section className="space-y-4">
           <SectionTitle
             n="2-3"
             title="핵심 추가 질문"
             lead="부족한 항목에 맞춘 질문입니다. 모르면 모른다고 답해도 됩니다."
             meta={`${answered}/${questions.length} 응답`}
           />
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {questions.map((q) => (
               <QuestionCard key={q.id} q={q} onAnswer={onAnswer} />
             ))}
@@ -124,14 +124,14 @@ export function ReviewScreen({
         </section>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-rule bg-canvas px-4 py-3">
-        <p className="text-[12px] leading-snug text-ink-muted">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-rule bg-canvas px-5 py-5 shadow-card">
+        <p className="text-[13px] leading-relaxed text-ink-muted">
           확인이 끝나면 요구 조건과 내 경험을 직접 맞춰 봅니다.
         </p>
         <button
           type="button"
           onClick={onNext}
-          className="shrink-0 rounded-sm bg-ink px-4 py-2 text-[13px] font-bold text-white"
+          className="w-full shrink-0 rounded-sm bg-ink px-6 py-3.5 text-[16px] font-bold text-white shadow-card transition-shadow hover:shadow-raised sm:w-auto"
         >
           현재 매핑 보기
         </button>
@@ -152,20 +152,20 @@ function SectionTitle({
   meta?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <div className="flex flex-wrap items-baseline justify-between gap-3">
       <div>
-        <p className="text-[11px] font-semibold tracking-wide text-brand">{n}</p>
-        <h2 className="text-[15px] font-bold text-ink">{title}</h2>
-        {lead ? <p className="text-[11px] text-ink-muted">{lead}</p> : null}
+        <p className="text-[12px] font-semibold tracking-wide text-brand">{n}</p>
+        <h2 className="mt-0.5 text-lg font-bold text-ink">{title}</h2>
+        {lead ? <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{lead}</p> : null}
       </div>
-      {meta ? <p className="tabular text-[11px] text-ink-faint">{meta}</p> : null}
+      {meta ? <p className="tabular text-[12px] text-ink-faint">{meta}</p> : null}
     </div>
   );
 }
 
 function FlagRow({ flag, onResolve }: { flag: ReviewFlag; onResolve: () => void }) {
   return (
-    <li className="flex flex-wrap items-start gap-2 text-[12px]">
+    <li className="flex flex-wrap items-start gap-3 text-[13px]">
       <span className="shrink-0 rounded-sm bg-canvas px-1.5 py-0.5 font-medium text-warn">
         {flag.field}
       </span>
@@ -192,22 +192,22 @@ function ProfileSummary({
   const grouped = groupByKind(profile.experiences);
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-sm border border-rule bg-canvas px-4 py-3">
-        <p className="text-sm font-bold text-ink">{profile.name || "이름 미입력"}</p>
+    <div className="space-y-4">
+      <div className="rounded-sm border border-rule bg-canvas px-5 py-4">
+        <p className="text-[15px] font-bold text-ink">{profile.name || "이름 미입력"}</p>
         {profile.headline ? (
-          <p className="text-[12px] text-ink-muted">{profile.headline}</p>
+          <p className="mt-0.5 text-[13px] text-ink-muted">{profile.headline}</p>
         ) : null}
-        <p className="tabular mt-1 text-[11px] text-ink-faint">
+        <p className="tabular mt-2 text-[12px] text-ink-faint">
           경험 {profile.experiences.length}건 · 확인 필요{" "}
           {profile.experiences.filter((e) => e.confidence === "needs-confirmation").length}건
         </p>
         {profile.links.length > 0 ? (
-          <ul className="mt-2 flex flex-wrap gap-1.5">
+          <ul className="mt-2 flex flex-wrap gap-2">
             {profile.links.map((l) => (
               <li
                 key={l.id}
-                className="rounded-sm bg-surface px-1.5 py-0.5 text-[11px] text-ink-muted"
+                className="rounded-sm bg-surface px-2 py-1 text-[12px] text-ink-muted"
               >
                 {l.label}
                 {l.status === "link-only" ? (
@@ -221,32 +221,32 @@ function ProfileSummary({
 
       {grouped.map(([kind, items]) => (
         <div key={kind} className="rounded-sm border border-rule bg-canvas">
-          <p className="border-b border-rule bg-surface-sunken px-3 py-1.5 text-[11px] font-semibold text-ink">
+          <p className="border-b border-rule bg-surface-sunken px-4 py-2.5 text-[13px] font-semibold text-ink">
             {EXPERIENCE_KIND_LABEL[kind]} · {items.length}
           </p>
           <ul className="divide-y divide-rule">
             {items.map((e) => (
-              <li key={e.id} className="px-3 py-2">
+              <li key={e.id} className="px-4 py-3.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <p className="text-[13px] font-medium text-ink">
+                  <p className="text-[14px] font-medium text-ink">
                     {e.organization}
                     <span className="ml-1.5 font-normal text-ink-muted">{e.title}</span>
                   </p>
-                  <p className="tabular shrink-0 text-[11px] text-ink-faint">
+                  <p className="tabular shrink-0 text-[12px] text-ink-faint">
                     {e.start}
                     {e.end ? ` ~ ${e.end}` : " ~ 현재"}
                   </p>
                 </div>
                 {e.publicationStatus ? (
-                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                  <p className="mt-1 text-[12px] text-ink-muted">
                     상태: {PUBLICATION_STATUS_LABEL[e.publicationStatus]}
                   </p>
                 ) : null}
                 {e.summary ? (
-                  <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{e.summary}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{e.summary}</p>
                 ) : null}
                 {e.confidence === "needs-confirmation" ? (
-                  <p className="mt-1 rounded-sm bg-warn-soft px-1.5 py-0.5 text-[11px] text-warn">
+                  <p className="mt-2 rounded-sm bg-warn-soft px-2 py-1 text-[12px] leading-relaxed text-warn">
                     확인 필요 — {e.note || "기간이나 본인 역할을 확인해 주세요."}
                   </p>
                 ) : null}
@@ -256,20 +256,20 @@ function ProfileSummary({
         </div>
       ))}
 
-      <div className="rounded-sm border border-dashed border-rule-strong bg-canvas px-3 py-2.5">
-        <label htmlFor="add-exp" className="text-[12px] font-semibold text-ink">
+      <div className="rounded-sm border border-dashed border-rule-strong bg-canvas px-5 py-4">
+        <label htmlFor="add-exp" className="text-[14px] font-semibold text-ink">
           빠진 경험 추가
         </label>
-        <p className="text-[11px] leading-snug text-ink-faint">
+        <p className="mt-1 text-[12px] leading-relaxed text-ink-faint">
           수업·대회·개인 프로젝트·봉사도 직무와 연결될 수 있습니다.
         </p>
         <textarea
           id="add-exp"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          rows={3}
+          rows={4}
           placeholder="예) 게임잼 · 2024.06 · 4인 팀에서 플레이어 이동과 UI 구현, 동료 1명의 Git 사용 지원"
-          className="mt-1.5 w-full rounded-sm border border-rule-strong bg-canvas px-2 py-1.5 text-[12px]"
+          className="mt-2.5 w-full rounded-sm border border-rule-strong bg-canvas px-3.5 py-2.5 text-[14px] leading-relaxed"
         />
         <button
           type="button"
@@ -278,7 +278,7 @@ function ProfileSummary({
             onAddExperience(draft.trim());
             setDraft("");
           }}
-          className="mt-1.5 rounded-sm border border-rule-strong px-2.5 py-1 text-[12px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
+          className="mt-2.5 rounded-sm border border-rule-strong px-4 py-2 text-[13px] font-medium text-ink hover:border-ink disabled:text-ink-faint"
         >
           추가
         </button>
@@ -306,21 +306,21 @@ function QuestionCard({
   };
 
   return (
-    <li className="rounded-sm border border-rule bg-canvas">
-      <div className="px-4 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className="min-w-0 flex-1 text-[13px] leading-relaxed font-medium text-ink">
+    <li className="rounded-sm border border-rule bg-canvas shadow-card">
+      <div className="px-5 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 text-[14px] leading-relaxed font-medium text-ink">
             {q.question}
           </p>
           {q.answerState !== "unanswered" ? (
-            <span className="shrink-0 rounded-sm bg-surface-sunken px-1.5 py-0.5 text-[11px] font-medium text-ink-muted">
+            <span className="shrink-0 rounded-sm bg-surface-sunken px-2 py-1 text-[12px] font-medium text-ink-muted">
               {STATE_LABEL[q.answerState]}
             </span>
           ) : null}
         </div>
-        <p className="mt-1 text-[11px] leading-snug text-ink-faint">왜 묻나요? {q.why}</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">왜 묻나요? {q.why}</p>
 
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Choice label="답하기" active={open} onClick={() => setOpen(true)} />
           <Choice
             label="자료 추가"
@@ -349,19 +349,19 @@ function QuestionCard({
         </div>
 
         {open ? (
-          <div className="mt-2">
+          <div className="mt-4">
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              rows={3}
+              rows={4}
               placeholder="무엇을 바꾸었고 어떻게 측정했는지까지 적으면 근거로 쓸 수 있습니다."
-              className="w-full rounded-sm border border-rule-strong bg-canvas px-2 py-1.5 text-[13px]"
+              className="w-full rounded-sm border border-rule-strong bg-canvas px-3.5 py-2.5 text-[14px] leading-relaxed"
             />
             <button
               type="button"
               disabled={!draft.trim()}
               onClick={() => onAnswer(q.id, "answered", draft.trim())}
-              className="mt-1.5 rounded-sm bg-ink px-2.5 py-1 text-[12px] font-medium text-white disabled:bg-rule-strong"
+              className="mt-2.5 rounded-sm bg-ink px-4 py-2 text-[13px] font-medium text-white disabled:bg-rule-strong"
             >
               답변 저장
             </button>
@@ -387,7 +387,7 @@ function Choice({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "rounded-sm border px-2 py-1 text-[12px] font-medium transition-colors",
+        "rounded-sm border px-3.5 py-2 text-[13px] font-medium transition-colors",
         active
           ? "border-ink bg-ink text-white"
           : "border-rule-strong bg-canvas text-ink-muted hover:border-ink hover:text-ink",

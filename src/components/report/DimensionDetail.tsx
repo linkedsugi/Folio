@@ -13,6 +13,8 @@ import {
   type StoryCard,
 } from "@/lib/types";
 import { STAGE_META } from "@/lib/scoring";
+import { RefinedMark } from "./RefinedMark";
+import type { RefinedLookup } from "./refined";
 
 /**
  * 부문 하나를 누르면 끝까지 이어져야 한다:
@@ -24,11 +26,14 @@ export function DimensionDetail({
   experiences,
   stories = [],
   actions = [],
+  refined,
 }: {
   dimension: MatchDimension;
   experiences: ExperienceItem[];
   stories?: StoryCard[];
   actions?: ActionCard[];
+  /** 정밀 분석이 다듬은 자리 조회. 넘기지 않으면 표식이 하나도 뜨지 않는다. */
+  refined?: RefinedLookup;
 }) {
   const used = experiences.filter((e) => dimension.usedExperienceIds.includes(e.id));
   const story = stories.find((s) => s.dimensionId === dimension.id);
@@ -36,20 +41,20 @@ export function DimensionDetail({
 
   return (
     <div className="rounded-sm border border-rule bg-canvas">
-      <header className="border-b border-rule px-4 py-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-sm font-bold text-ink">
+      <header className="border-b border-rule px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h3 className="text-[15px] font-bold text-ink">
             {dimension.label}
             {dimension.kind === "must" ? (
-              <span className="ml-1.5 text-[11px] font-semibold text-ink-muted">[필수]</span>
+              <span className="ml-2 text-[12px] font-semibold text-ink-muted">[필수]</span>
             ) : dimension.kind === "preferred" ? (
-              <span className="ml-1.5 text-[11px] font-semibold text-ink-faint">[우대]</span>
+              <span className="ml-2 text-[12px] font-semibold text-ink-faint">[우대]</span>
             ) : null}
           </h3>
-          <p className="text-[11px] text-ink-faint">부문 비중 {dimension.weight}%</p>
+          <p className="text-[12px] text-ink-faint">부문 비중 {dimension.weight}%</p>
         </div>
 
-        <dl className="mt-2.5 grid grid-cols-3 gap-2">
+        <dl className="mt-3.5 grid grid-cols-3 gap-2.5">
           {(["current", "afterStory", "target"] as const).map((stage) => {
             const tone =
               stage === "current"
@@ -58,11 +63,13 @@ export function DimensionDetail({
                   ? "bg-story-soft text-story"
                   : "bg-goal-soft text-goal";
             return (
-              <div key={stage} className={`rounded-sm px-2 py-1.5 ${tone}`}>
-                <dt className="text-[10px] leading-tight font-semibold opacity-80">
+              <div key={stage} className={`rounded-sm px-3 py-2 ${tone}`}>
+                <dt className="text-[11px] leading-tight font-semibold opacity-80">
                   {STAGE_META[stage].title}
                 </dt>
-                <dd className="tabular text-lg leading-tight font-bold">{dimension[stage]}%</dd>
+                <dd className="tabular mt-0.5 text-lg leading-tight font-bold">
+                  {dimension[stage]}%
+                </dd>
               </div>
             );
           })}
@@ -72,13 +79,23 @@ export function DimensionDetail({
       <div className="divide-y divide-rule">
         <Row label="팀의 기대">{dimension.teamExpectation}</Row>
         <Row label="반영한 내 경험">
-          <p>{dimension.storyBasis || dimension.currentBasis}</p>
+          <p>
+            {dimension.storyBasis || dimension.currentBasis}
+            {/* 화면에 실제로 그린 쪽의 출처를 밝힌다. 고르지 않은 문장의 표식을 빌려오면 거짓이 된다. */}
+            <RefinedMark
+              refined={refined?.(
+                dimension.storyBasis
+                  ? `dimension:${dimension.id}:storyBasis`
+                  : `dimension:${dimension.id}:currentBasis`,
+              )}
+            />
+          </p>
           {used.length > 0 ? (
-            <ul className="mt-1.5 space-y-1">
+            <ul className="mt-2.5 space-y-1.5">
               {used.map((e) => (
-                <li key={e.id} className="rounded-sm bg-surface px-2 py-1 text-[12px]">
+                <li key={e.id} className="rounded-sm bg-surface px-3 py-2 text-[13px]">
                   <span className="font-medium text-ink">{e.organization}</span>
-                  <span className="mx-1 text-ink-faint">·</span>
+                  <span className="mx-1.5 text-ink-faint">·</span>
                   <span className="text-ink-muted">{e.title}</span>
                   {e.ownRole ? (
                     <span className="block text-ink-faint">본인 역할: {e.ownRole}</span>
@@ -90,22 +107,25 @@ export function DimensionDetail({
         </Row>
 
         <Row label="점수의 이유">
-          <p>{dimension.currentBasis}</p>
+          <p>
+            {dimension.currentBasis}
+            <RefinedMark refined={refined?.(`dimension:${dimension.id}:currentBasis`)} />
+          </p>
           {dimension.rationale.length > 0 ? (
-            <details className="mt-1.5">
-              <summary className="cursor-pointer list-none text-[12px] font-medium text-brand hover:underline">
+            <details className="mt-2.5">
+              <summary className="cursor-pointer list-none text-[13px] font-medium text-brand hover:underline">
                 왜 이렇게 해석했나요?
               </summary>
-              <ol className="mt-1.5 space-y-2">
+              <ol className="mt-2.5 space-y-3">
                 {dimension.rationale.map((r, i) => (
-                  <li key={i} className="border-l-2 border-rule pl-2.5">
-                    <p className="text-[12px] font-medium text-ink">{r.claim}</p>
+                  <li key={i} className="border-l-2 border-rule pl-3.5">
+                    <p className="text-[13px] font-medium text-ink">{r.claim}</p>
                     {r.evidence.map((e, j) => (
-                      <blockquote key={j} className="mt-0.5 bg-surface px-2 py-1 text-[12px] italic">
+                      <blockquote key={j} className="mt-1 bg-surface px-3 py-2 text-[13px] italic">
                         “{e.quote}”
                       </blockquote>
                     ))}
-                    <p className="mt-0.5 text-[12px] text-ink-muted">{r.interpretation}</p>
+                    <p className="mt-1 text-[13px] text-ink-muted">{r.interpretation}</p>
                   </li>
                 ))}
               </ol>
@@ -119,26 +139,36 @@ export function DimensionDetail({
         */}
         <Row label="스토리텔링에서">
           <p className="font-medium text-ink">{STORY_LIFT_LABEL[dimension.storyLift]}</p>
-          <p className="mt-0.5 text-ink-muted">{STORY_LIFT_NOTE[dimension.storyLift]}</p>
+          <p className="mt-1 text-ink-muted">{STORY_LIFT_NOTE[dimension.storyLift]}</p>
           {dimension.storyBasis ? (
-            <p className="mt-1 text-ink-muted">{dimension.storyBasis}</p>
+            <p className="mt-1.5 text-ink-muted">
+              {dimension.storyBasis}
+              <RefinedMark refined={refined?.(`dimension:${dimension.id}:storyBasis`)} />
+            </p>
           ) : null}
         </Row>
 
         {story ? (
           <Row label="이력서 2의 문장">
             {/* 분석서에서 채택한 경험과 실제 이력서의 문장이 일치해야 한다. (기획서 14) */}
-            <blockquote className="border-l-2 border-story pl-2.5 leading-relaxed">
+            <blockquote className="border-l-2 border-story pl-3.5 leading-relaxed">
               “{story.resumeSentence}”
+              <RefinedMark refined={refined?.(`story:${story.id}:resumeSentence`)} />
             </blockquote>
-            <p className="mt-1 text-[12px] text-ink-muted">면접에서: “{story.interviewNote}”</p>
+            <p className="mt-1.5 text-[13px] text-ink-muted">
+              면접에서: “{story.interviewNote}”
+              <RefinedMark refined={refined?.(`story:${story.id}:interviewNote`)} />
+            </p>
           </Row>
         ) : null}
 
         <Row label="남는 차이">
-          <p className="text-warn">{dimension.remainingGap}</p>
+          <p className="text-warn">
+            {dimension.remainingGap}
+            <RefinedMark refined={refined?.(`dimension:${dimension.id}:remainingGap`)} />
+          </p>
           {dimension.targetCaveat ? (
-            <p className="mt-1 rounded-sm bg-warn-soft px-2 py-1 text-[12px] text-warn">
+            <p className="mt-2 rounded-sm bg-warn-soft px-3 py-2 text-[13px] text-warn">
               {dimension.targetCaveat}
             </p>
           ) : null}
@@ -146,19 +176,19 @@ export function DimensionDetail({
 
         <Row label="이후 진행 → 완료 증거">
           <p>{dimension.nextStep}</p>
-          <p className="mt-0.5 text-ink-muted">→ {dimension.evidenceToProduce}</p>
+          <p className="mt-1 text-ink-muted">→ {dimension.evidenceToProduce}</p>
         </Row>
 
         {dimActions.length > 0 ? (
           <Row label="이력서 3의 목표 문장">
             {/* 개선 과제는 이 문장에서 거꾸로 설계된다. */}
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {dimActions.map((a) => (
                 <li key={a.id}>
-                  <blockquote className="border-l-2 border-goal bg-goal-soft px-2 py-1 leading-relaxed">
+                  <blockquote className="border-l-2 border-goal bg-goal-soft px-3 py-2 leading-relaxed">
                     “{a.targetSentence}”
                   </blockquote>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
+                  <p className="mt-1 text-[13px] text-ink-muted">
                     사실로 만들려면: {a.experienceNeeded}
                   </p>
                 </li>
@@ -168,7 +198,7 @@ export function DimensionDetail({
         ) : null}
 
         {dimension.confidence === "needs-confirmation" ? (
-          <div className="bg-warn-soft px-4 py-2.5 text-[12px] leading-snug text-warn">
+          <div className="bg-warn-soft px-5 py-3 text-[13px] leading-snug text-warn">
             정보가 부족해 <strong>확인 필요</strong>로 남겨 둔 항목입니다. 관련 경험을 추가하면 다시
             평가합니다.
           </div>
@@ -178,11 +208,15 @@ export function DimensionDetail({
   );
 }
 
+/*
+ * 라벨-내용 2단 구조. 라벨이 내용에 붙어 있으면 어느 쪽이 답인지 눈이 먼저 헤맨다.
+ * 좁은 화면에서는 위아래, 넓은 화면에서는 좌우로 벌린다.
+ */
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1 px-4 py-2.5 sm:grid-cols-[7rem_1fr] sm:gap-4">
-      <p className="text-[11px] font-semibold tracking-wide text-ink-faint sm:pt-0.5">{label}</p>
-      <div className="min-w-0 text-[13px] leading-relaxed">{children}</div>
+    <div className="grid gap-1.5 px-5 py-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5">
+      <p className="text-[12px] font-semibold tracking-wide text-ink-faint sm:pt-0.5">{label}</p>
+      <div className="min-w-0 text-[14px] leading-relaxed">{children}</div>
     </div>
   );
 }

@@ -19,8 +19,8 @@ export interface BadgeProps {
 }
 
 const SIZE: Record<BadgeSize, string> = {
-  xs: "px-1 py-px text-[10px]",
-  sm: "px-1.5 py-px text-[11px]",
+  xs: "px-1.5 py-0.5 text-[11px]",
+  sm: "px-2 py-0.5 text-[12px]",
 };
 
 export function Badge({ tone = "neutral", size = "sm", children, title, className }: BadgeProps) {

@@ -33,14 +33,14 @@ export function ScoreBar({
   return (
     <div className={clsx("min-w-0", className)}>
       {label || showValues ? (
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline justify-between gap-3">
           {label ? (
-            <span className="min-w-0 truncate text-[12px] font-medium text-ink">{label}</span>
+            <span className="min-w-0 truncate text-[13px] font-medium text-ink">{label}</span>
           ) : (
             <span />
           )}
           {showValues ? (
-            <span className="tabular shrink-0 text-[11px] font-semibold">
+            <span className="tabular shrink-0 text-[12px] font-semibold">
               <span className="text-now">{c}</span>
               <span className="text-ink-faint"> → </span>
               <span className="text-story">{a}</span>
@@ -55,7 +55,7 @@ export function ScoreBar({
       <div
         role="img"
         aria-label={`현재 ${c}%, 스토리텔링 후 ${a}%, 목표 ${t}%`}
-        className="relative mt-1 h-2.5 w-full overflow-hidden rounded-sm bg-surface-sunken"
+        className="relative mt-1.5 h-3 w-full overflow-hidden rounded-sm bg-surface-sunken"
       >
         {/* 뒤에서부터: 목표 → 스토리 후 → 현재 순으로 겹쳐 그린다. */}
         <span className="absolute inset-y-0 left-0 bg-goal-soft" style={{ width: `${t}%` }} />

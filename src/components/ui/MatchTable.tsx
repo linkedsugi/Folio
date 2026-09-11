@@ -57,11 +57,12 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
   }
 
   return (
-    <div>
+    // min-w-0: 부모가 flex·grid 일 때 표의 고유 너비가 본문을 가로로 밀어내지 않게 한다.
+    <div className="min-w-0">
       <div className="overflow-x-auto rounded-sm border border-rule bg-canvas">
         <table
           role={interactive ? "grid" : undefined}
-          className="w-full min-w-[880px] border-separate border-spacing-0 text-left"
+          className="w-full min-w-[1040px] border-separate border-spacing-0 text-left"
         >
           <caption className="sr-only">
             부문별 매칭 비교표. 열 구성: 모집팀의 기대, 현재, 스토리텔링에 활용할 경험, 스토리 후,
@@ -70,12 +71,12 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
           </caption>
 
           <colgroup>
-            <col className="w-[190px]" />
-            <col className="w-[76px]" />
-            <col className="w-[230px]" />
-            <col className="w-[76px]" />
-            <col className="w-[290px]" />
+            <col className="w-[200px]" />
             <col className="w-[88px]" />
+            <col className="w-[250px]" />
+            <col className="w-[88px]" />
+            <col className="w-[310px]" />
+            <col className="w-[104px]" />
           </colgroup>
 
           <thead>
@@ -122,10 +123,10 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
                 >
                   <th
                     scope="row"
-                    className="border-b border-rule px-3 py-2.5 text-left align-top font-normal"
+                    className="border-b border-rule px-4 py-4 text-left align-top font-normal"
                   >
-                    <span className="flex flex-wrap items-center gap-1">
-                      <span className="text-[13px] leading-snug font-bold text-ink">{d.label}</span>
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[14px] leading-snug font-bold text-ink">{d.label}</span>
                       {kind ? (
                         <Badge tone={kind.tone} size="xs">
                           {kind.label}
@@ -141,7 +142,7 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
                         </Badge>
                       ) : null}
                     </span>
-                    <span className="tabular mt-0.5 block text-[11px] text-ink-faint">
+                    <span className="tabular mt-1.5 block text-[12px] text-ink-faint">
                       비중 {d.weight}%
                     </span>
                   </th>
@@ -157,7 +158,7 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
                     {d.storyBasis}
                     {/* 문장만 고쳐서 오른 값이 아니라는 것을 여기서 분명히 한다. */}
                     {d.storyLift !== "lifted" ? (
-                      <span className="mt-0.5 block text-[10px] leading-snug text-ink-faint">
+                      <span className="mt-1 block text-[11px] leading-snug text-ink-faint">
                         {STORY_LIFT_LABEL[d.storyLift]}
                       </span>
                     ) : null}
@@ -173,7 +174,7 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
                   <TextCell interactive={interactive} emphasized={emphasize === "target"}>
                     {d.nextStep}
                     {d.evidenceToProduce ? (
-                      <span className="mt-0.5 block text-[11px] leading-snug text-ink-faint">
+                      <span className="mt-1 block text-[12px] leading-snug text-ink-faint">
                         → {d.evidenceToProduce}
                       </span>
                     ) : null}
@@ -194,7 +195,7 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
         </table>
       </div>
 
-      <p className="mt-1 text-[11px] text-ink-faint sm:hidden">
+      <p className="mt-2 text-[12px] text-ink-faint sm:hidden">
         표를 좌우로 밀면 나머지 열을 볼 수 있습니다.
       </p>
     </div>
@@ -214,7 +215,9 @@ function Th({
     <th
       scope="col"
       className={clsx(
-        "px-3 py-2 text-[11px] leading-snug font-semibold",
+        // 머리글이 본문 수치(15~20px)보다 작으면 열 이름이 눌려 보인다.
+        // 여섯 열을 옆으로 밀어 가며 읽는 표라 머리글이 더 잘 보여야 한다.
+        "px-4 py-3.5 text-[13px] leading-snug font-semibold",
         align === "center" ? "text-center" : "text-left",
         accent,
       )}
@@ -241,13 +244,13 @@ function ScoreCell({
   return (
     <td
       role={interactive ? "gridcell" : undefined}
-      className={clsx("border-b border-rule px-2 py-2.5 text-center align-middle", t.soft)}
+      className={clsx("border-b border-rule px-3 py-4 text-center align-middle", t.soft)}
     >
       <span
         className={clsx(
           "tabular block leading-none font-bold",
           t.text,
-          emphasized ? "text-[18px]" : "text-[14px]",
+          emphasized ? "text-[20px]" : "text-[15px]",
         )}
       >
         {value}%
@@ -255,7 +258,7 @@ function ScoreCell({
       {caveat ? (
         <span
           title={caveat}
-          className="mt-1 line-clamp-2 block text-[10px] leading-snug text-ink-muted"
+          className="mt-1.5 line-clamp-2 block text-[11px] leading-snug text-ink-muted"
         >
           {caveat}
         </span>
@@ -277,7 +280,7 @@ function TextCell({
     <td
       role={interactive ? "gridcell" : undefined}
       className={clsx(
-        "border-b border-rule px-3 py-2.5 align-top text-[12px] leading-snug",
+        "border-b border-rule px-4 py-4 align-top text-[13px] leading-relaxed",
         emphasized ? "font-medium text-ink" : "text-ink-muted",
       )}
     >

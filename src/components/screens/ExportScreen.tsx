@@ -58,44 +58,44 @@ export function ExportScreen({
   const openActions = report.actions.filter((a) => a.status !== "evidence-submitted");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <header>
-        <p className="text-[11px] font-semibold tracking-wide text-brand">06 / DELIVERABLES</p>
-        <h1 className="mt-0.5 text-xl leading-tight font-bold text-ink sm:text-2xl">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">06 / DELIVERABLES</p>
+        <h1 className="mt-1.5 text-xl leading-tight font-bold text-ink sm:text-2xl">
           두 결과물을 각각 확인하고 받으세요
         </h1>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
+        <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-ink-muted">
           기업에 내는 이력서와, 나만 보는 분석서는 서로 다른 파일입니다. 분석서의 점수·부족한
           부분·면접 메모·미래 계획은 제출용 이력서에 들어가지 않습니다.
         </p>
       </header>
 
       {/* 내려받기 전 확인 */}
-      <section className="rounded-sm border border-rule bg-canvas">
-        <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rule bg-surface-sunken px-4 py-2.5">
-          <h2 className="text-sm font-bold text-ink">내려받기 전에 확인하기</h2>
-          <p className="tabular text-[11px] text-ink-faint">
+      <section className="rounded-sm border border-rule bg-canvas shadow-card">
+        <header className="flex flex-wrap items-baseline justify-between gap-3 border-b border-rule bg-surface-sunken px-5 py-4">
+          <h2 className="text-lg font-bold text-ink">내려받기 전에 확인하기</h2>
+          <p className="tabular text-[12px] text-ink-faint">
             {app.preflight.length - remaining}/{app.preflight.length} 확인
           </p>
         </header>
         <ul className="divide-y divide-rule">
           {app.preflight.map((c) => (
             <li key={c.id}>
-              <label className="flex cursor-pointer items-start gap-2.5 px-4 py-2.5 hover:bg-surface">
+              <label className="flex cursor-pointer items-start gap-3 px-5 py-4 hover:bg-surface">
                 <input
                   type="checkbox"
                   checked={c.checked}
                   onChange={() => onToggleCheck(c.id)}
-                  className="mt-0.5 size-4 shrink-0 accent-[var(--color-ink)]"
+                  className="mt-0.5 size-4.5 shrink-0 accent-[var(--color-ink)]"
                 />
                 <span className="min-w-0">
-                  <span className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="rounded-sm bg-surface-sunken px-1.5 text-[11px] font-semibold text-ink-muted">
+                  <span className="flex flex-wrap items-baseline gap-2">
+                    <span className="rounded-sm bg-surface-sunken px-2 py-0.5 text-[12px] font-semibold text-ink-muted">
                       {CATEGORY_LABEL[c.category]}
                     </span>
-                    <span className="text-[13px] font-medium text-ink">{c.label}</span>
+                    <span className="text-[14px] font-medium text-ink">{c.label}</span>
                   </span>
-                  <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">
+                  <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
                     {c.detail}
                   </span>
                 </span>
@@ -105,17 +105,21 @@ export function ExportScreen({
         </ul>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      {/*
+        두 결과물 카드가 이 화면의 주인공이다. 제출용은 shadow-raised 로 한 층 더 띄워
+        "기업에 나가는 파일"과 "나만 보는 파일"을 두께로도 구분한다.
+      */}
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* 결과물 01 — 기업 제출용 */}
-        <section className="rounded-sm border-2 border-ink bg-canvas">
-          <header className="bg-ink px-4 py-2.5">
-            <p className="text-[11px] font-semibold tracking-wide text-white/70">
+        <section className="rounded-sm border-2 border-ink bg-canvas shadow-raised">
+          <header className="bg-ink px-5 py-5">
+            <p className="text-[12px] font-semibold tracking-wide text-white/70">
               결과물 01 · 기업 제출용
             </p>
-            <h2 className="text-sm font-bold text-white">맞춤형 {submit.docType === "cv" ? "CV" : "Resume"}</h2>
+            <h2 className="mt-1.5 text-xl font-bold text-white">맞춤형 {submit.docType === "cv" ? "CV" : "Resume"}</h2>
           </header>
-          <div className="px-4 py-3">
-            <dl className="grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[5rem_1fr]">
+          <div className="px-5 py-5">
+            <dl className="grid gap-x-4 gap-y-2 text-[13px] sm:grid-cols-[5rem_1fr]">
               <dt className="text-ink-faint">제출 판본</dt>
               <dd className="font-medium text-ink">
                 {RESUME_VARIANT_META[resumes.submitVariant].title}
@@ -133,20 +137,20 @@ export function ExportScreen({
             </dl>
 
             {!allChecked ? (
-              <p className="mt-3 rounded-sm bg-warn-soft px-2 py-1.5 text-[12px] leading-snug text-warn">
+              <p className="mt-4 rounded-sm bg-warn-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-warn">
                 확인하지 않은 항목이 {remaining}건 있습니다. 먼저 확인하면 잘못된 사실이 들어간 채로
                 제출하는 일을 막을 수 있습니다.
               </p>
             ) : null}
 
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-5 flex flex-wrap gap-2">
               {(["pdf", "docx", "txt"] as const).map((f) => (
                 <button
                   key={f}
                   type="button"
                   disabled={Boolean(busy)}
                   onClick={() => onDownloadResume(resumes.submitVariant, f)}
-                  className="rounded-sm border border-ink bg-ink px-2.5 py-1.5 text-[12px] font-bold text-white disabled:opacity-50"
+                  className="rounded-sm border border-ink bg-ink px-4 py-2.5 text-[14px] font-bold text-white shadow-card transition-shadow hover:shadow-raised disabled:opacity-50 disabled:shadow-none"
                 >
                   {busy === `resume-${f}`
                     ? "만드는 중…"
@@ -158,33 +162,33 @@ export function ExportScreen({
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">
+            <p className="mt-2.5 text-[12px] leading-relaxed text-ink-faint">
               PDF 는 브라우저 인쇄 창에서 “PDF 로 저장”을 고르면 됩니다. 한글 글꼴이 그대로 들어갑니다.
               텍스트는 온라인 지원 폼에 붙여 넣는 용도입니다.
             </p>
 
             {/* 다른 판본도 받을 수 있게 하되, 제출 불가 판본은 분명히 구분한다. */}
-            <details className="mt-3 border-t border-rule pt-2.5">
-              <summary className="cursor-pointer list-none text-[12px] font-medium text-brand hover:underline">
+            <details className="mt-5 border-t border-rule pt-4">
+              <summary className="cursor-pointer list-none text-[13px] font-medium text-brand hover:underline">
                 다른 판본도 받기
               </summary>
-              <ul className="mt-2 space-y-2">
+              <ul className="mt-3 space-y-3">
                 {(["baseline", "story", "future"] as ResumeVariant[])
                   .filter((v) => v !== resumes.submitVariant)
                   .map((v) => {
                     const meta = RESUME_VARIANT_META[v];
                     const blocked = !meta.submittable && !confirmedFuture;
                     return (
-                      <li key={v} className="rounded-sm border border-rule px-2.5 py-2">
-                        <p className="text-[12px] font-bold text-ink">
+                      <li key={v} className="rounded-sm border border-rule px-4 py-3">
+                        <p className="text-[13px] font-bold text-ink">
                           {meta.title}
                           <span className="ml-1.5 font-normal text-ink-muted">
                             {resumes[v].narrative.matchScore}%
                           </span>
                         </p>
-                        <p className="mt-0.5 text-[11px] leading-snug text-ink-muted">{meta.note}</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">{meta.note}</p>
                         {!meta.submittable ? (
-                          <label className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-snug text-goal">
+                          <label className="mt-2.5 flex items-start gap-2 text-[12px] leading-relaxed text-goal">
                             <input
                               type="checkbox"
                               checked={confirmedFuture}
@@ -196,14 +200,14 @@ export function ExportScreen({
                             </span>
                           </label>
                         ) : null}
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {(["pdf", "docx", "txt"] as const).map((f) => (
                             <button
                               key={f}
                               type="button"
                               disabled={blocked || Boolean(busy)}
                               onClick={() => onDownloadResume(v, f)}
-                              className="rounded-sm border border-rule-strong px-2 py-1 text-[11px] font-medium text-ink hover:border-ink disabled:border-rule disabled:text-ink-faint"
+                              className="rounded-sm border border-rule-strong px-3.5 py-2 text-[12px] font-medium text-ink hover:border-ink disabled:border-rule disabled:text-ink-faint"
                             >
                               {f === "pdf" ? "PDF" : f === "docx" ? "Word" : "텍스트"}
                             </button>
@@ -218,19 +222,19 @@ export function ExportScreen({
         </section>
 
         {/* 결과물 02 — 지원자 전용 */}
-        <section className="rounded-sm border border-rule-strong bg-canvas">
-          <header className="border-b border-rule bg-surface-sunken px-4 py-2.5">
-            <p className="text-[11px] font-semibold tracking-wide text-ink-muted">
+        <section className="rounded-sm border border-rule-strong bg-canvas shadow-card">
+          <header className="border-b border-rule bg-surface-sunken px-5 py-5">
+            <p className="text-[12px] font-semibold tracking-wide text-ink-muted">
               결과물 02 · 지원자 전용
             </p>
-            <h2 className="text-sm font-bold text-ink">지원전략 분석서</h2>
+            <h2 className="mt-1.5 text-xl font-bold text-ink">지원전략 분석서</h2>
           </header>
-          <div className="px-4 py-3">
-            <p className="rounded-sm bg-surface px-2 py-1.5 text-[12px] leading-snug text-ink-muted">
+          <div className="px-5 py-5">
+            <p className="rounded-sm bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-muted">
               기본 비공개입니다. 코치나 기관에 보여줄지는 직접 고르세요. 여기 담긴 점수·부족한 부분·
               미래 계획은 기업 제출용 이력서에 들어가지 않습니다.
             </p>
-            <dl className="mt-2.5 grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[5rem_1fr]">
+            <dl className="mt-4 grid gap-x-4 gap-y-2 text-[13px] sm:grid-cols-[5rem_1fr]">
               <dt className="text-ink-faint">매칭</dt>
               <dd className="tabular font-medium text-ink">
                 <span className="text-now">{report.overall.display.current}%</span>
@@ -244,14 +248,14 @@ export function ExportScreen({
                 요약 1쪽 + 인재상·매칭 근거 / 경험 스토리 / 실행·목표 계획
               </dd>
             </dl>
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-5 flex flex-wrap gap-2">
               {(["pdf", "docx"] as const).map((f) => (
                 <button
                   key={f}
                   type="button"
                   disabled={Boolean(busy)}
                   onClick={() => onDownloadReport(f)}
-                  className="rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-bold text-ink hover:border-ink disabled:text-ink-faint"
+                  className="rounded-sm border border-rule-strong bg-canvas px-4 py-2.5 text-[14px] font-bold text-ink shadow-card transition-shadow hover:border-ink hover:shadow-raised disabled:text-ink-faint disabled:shadow-none"
                 >
                   {busy === `report-${f}` ? "만드는 중…" : f === "pdf" ? "PDF 인쇄" : "Word 받기"}
                 </button>
@@ -263,15 +267,15 @@ export function ExportScreen({
 
       {/* 남은 과제와 재평가 안내 */}
       {openActions.length > 0 ? (
-        <section className="rounded-sm border border-rule bg-canvas px-4 py-3">
-          <h2 className="text-sm font-bold text-ink">다음 준비</h2>
-          <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+        <section className="rounded-sm border border-rule bg-canvas px-5 py-5 shadow-card">
+          <h2 className="text-lg font-bold text-ink">다음 준비</h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
             아직 증거를 제출하지 않은 과제가 {openActions.length}건 있습니다. 결과물과 본인 역할을
             추가하면 해당 부문을 다시 평가하고, 이력서 문장도 함께 갱신합니다.
           </p>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-4 space-y-2">
             {openActions.slice(0, 4).map((a) => (
-              <li key={a.id} className="text-[12px] text-ink-muted">
+              <li key={a.id} className="text-[13px] leading-relaxed text-ink-muted">
                 · <span className="font-medium text-ink">{a.gap}</span> — {a.reassessCriteria}
               </li>
             ))}
@@ -279,7 +283,7 @@ export function ExportScreen({
           <button
             type="button"
             onClick={onAddEvidence}
-            className="mt-2.5 rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink"
+            className="mt-5 w-full rounded-sm border border-rule-strong bg-canvas px-5 py-3 text-[15px] font-bold text-ink shadow-card transition-shadow hover:border-ink hover:shadow-raised sm:w-auto"
           >
             새 근거 추가하러 가기
           </button>

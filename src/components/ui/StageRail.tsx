@@ -26,7 +26,7 @@ export function StageRail({ current, completed, onSelect }: StageRailProps) {
   return (
     <nav aria-label="진행 단계">
       {/* 좁은 화면에서는 이 줄만 가로로 밀린다. 본문은 밀리지 않는다. */}
-      <ol className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+      <ol className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1.5">
         {RAIL_STAGES.map((s) => {
           const meta = STAGE_LABEL[s];
           const isCurrent = s === current;
@@ -43,7 +43,16 @@ export function StageRail({ current, completed, onSelect }: StageRailProps) {
                 aria-current={isCurrent ? "step" : undefined}
                 onClick={enabled ? () => onSelect?.(s) : undefined}
                 className={clsx(
-                  "flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-left transition-colors",
+                  // 칩이 작으면 되돌아가기가 겁나는 일이 된다. 손끝으로 눌러도
+                  // 빗나가지 않도록 최소 높이를 44px 로 두고, h-full 로 여섯 칩의 키를 맞춘다.
+                  /*
+                   * relative 가 반드시 있어야 한다.
+                   * 아래 sr-only 스팬은 position:absolute 인데, 위치 기준이 될 조상이 없으면
+                   * 가로 스크롤 컨테이너(ol)를 탈출해 문서 바깥에 자리를 잡는다.
+                   * 그러면 390px 화면에서 페이지 전체가 448px 옆으로 밀리고,
+                   * 오른쪽 끝에는 텅 빈 여백만 남는다. 실제로 그렇게 됐던 자리다.
+                   */
+                  "relative flex h-full min-h-11 items-center gap-2.5 rounded-sm border px-3.5 py-2 text-left transition-colors",
                   isCurrent
                     ? "border-ink bg-ink text-white"
                     : isDone
@@ -53,7 +62,7 @@ export function StageRail({ current, completed, onSelect }: StageRailProps) {
               >
                 <span
                   className={clsx(
-                    "tabular flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-[11px] font-bold",
+                    "tabular flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-[12px] font-bold",
                     isCurrent
                       ? "bg-canvas text-ink"
                       : isDone
@@ -65,13 +74,13 @@ export function StageRail({ current, completed, onSelect }: StageRailProps) {
                 </span>
 
                 <span className="block">
-                  <span className="block text-[12px] leading-tight font-semibold whitespace-nowrap">
+                  <span className="block text-[13px] leading-tight font-semibold whitespace-nowrap">
                     {meta.title}
                   </span>
                   {meta.output ? (
                     <span
                       className={clsx(
-                        "block text-[10px] leading-tight whitespace-nowrap",
+                        "mt-0.5 block text-[11px] leading-tight whitespace-nowrap",
                         isCurrent ? "text-white/80" : isDone ? "text-ink-muted" : "text-ink-faint",
                       )}
                     >

@@ -27,7 +27,7 @@ export interface FieldProps {
 export function Field({ label, hint, error, required, htmlFor, children, className }: FieldProps) {
   return (
     <div className={clsx("min-w-0", className)}>
-      <label htmlFor={htmlFor} className="block text-[12px] font-semibold text-ink">
+      <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-ink">
         {label}
         {required ? (
           <span className="ml-1 text-danger" title="필수 입력">
@@ -36,13 +36,13 @@ export function Field({ label, hint, error, required, htmlFor, children, classNa
         ) : null}
       </label>
       {hint ? (
-        <p id={`${htmlFor}-hint`} className="mt-0.5 text-[11px] leading-snug text-ink-faint">
+        <p id={`${htmlFor}-hint`} className="mt-1 text-[12px] leading-snug text-ink-faint">
           {hint}
         </p>
       ) : null}
-      <div className="mt-1">{children}</div>
+      <div className="mt-1.5">{children}</div>
       {error ? (
-        <p id={`${htmlFor}-error`} role="alert" className="mt-1 text-[11px] font-medium text-danger">
+        <p id={`${htmlFor}-error`} role="alert" className="mt-1.5 text-[12px] font-medium text-danger">
           {error}
         </p>
       ) : null}
@@ -50,8 +50,12 @@ export function Field({ label, hint, error, required, htmlFor, children, classNa
   );
 }
 
+/*
+ * 입력칸도 버튼과 같은 높이 감각으로 맞춘다.
+ * 공고 본문처럼 긴 글을 붙여 넣는 자리라 글자가 작으면 오타를 못 잡는다.
+ */
 const CONTROL =
-  "w-full rounded-sm border bg-canvas px-2.5 py-1.5 text-[13px] leading-relaxed text-ink placeholder:text-ink-faint disabled:cursor-not-allowed disabled:bg-surface-sunken";
+  "w-full rounded-sm border bg-canvas px-3.5 py-2.5 text-[14px] leading-relaxed text-ink placeholder:text-ink-faint disabled:cursor-not-allowed disabled:bg-surface-sunken";
 
 function describedBy(id: string, hint?: string, error?: string): string | undefined {
   const ids = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean);

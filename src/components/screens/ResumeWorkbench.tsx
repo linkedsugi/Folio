@@ -76,11 +76,11 @@ export function ResumeWorkbench({
   }, [doc]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <header>
-        <p className="text-[11px] font-semibold tracking-wide text-brand">05 / RESUME</p>
-        <h2 className="mt-0.5 text-xl leading-tight font-bold text-ink">이력서 편집</h2>
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">05 / RESUME</p>
+        <h2 className="mt-1.5 text-xl leading-tight font-bold text-ink">이력서 편집</h2>
+        <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-ink-muted">
           {posting.company} · {posting.roleTitle} 에 맞춰 선별한 문장입니다. 문장을 눌러
           채택·수정·제외하고, 왜 그 경험을 넣었는지 확인하세요.
         </p>
@@ -95,19 +95,23 @@ export function ResumeWorkbench({
         onSubmitVariantChange={onSubmitVariant}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
-        <div className="space-y-3 lg:sticky lg:top-24 lg:self-start">
+      {/*
+        왼쪽 조작판만 넓힌다. 오른쪽 지면(.print-page)은 실제로 인쇄되어 남의 손에 들어가는
+        서류라 촘촘한 줄간격이 옳고, 제품처럼 꾸미면 오히려 신뢰를 잃는다.
+      */}
+      <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
+        <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           {/* 문서 설정 */}
-          <section className="rounded-sm border border-rule bg-canvas px-3 py-3">
-            <h3 className="text-[12px] font-bold text-ink">문서 설정</h3>
+          <section className="rounded-sm border border-rule bg-canvas px-5 py-5 shadow-card">
+            <h3 className="text-[15px] font-bold text-ink">문서 설정</h3>
             {posting.documentRules?.note ? (
-              <p className="mt-1 rounded-sm bg-warn-soft px-2 py-1 text-[11px] leading-snug text-warn">
+              <p className="mt-2 rounded-sm bg-warn-soft px-3 py-2 text-[12px] leading-relaxed text-warn">
                 공고가 정한 조건: {posting.documentRules.note} — 공고 조건을 우선합니다.
               </p>
             ) : null}
 
             <Control label="문서 유형">
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {(["resume", "cv"] as const).map((t) => (
                   <Toggle
                     key={t}
@@ -120,7 +124,7 @@ export function ResumeWorkbench({
             </Control>
 
             <Control label="언어">
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {(["ko", "en"] as const).map((l) => (
                   <Toggle
                     key={l}
@@ -141,38 +145,38 @@ export function ResumeWorkbench({
                       onClick={() => onTemplate(t.id)}
                       aria-pressed={doc.templateId === t.id}
                       className={[
-                        "w-full rounded-sm border px-2 py-1.5 text-left transition-colors",
+                        "w-full rounded-sm border px-3 py-2.5 text-left transition-colors",
                         doc.templateId === t.id
                           ? "border-ink bg-surface-sunken"
                           : "border-rule hover:border-rule-strong",
                       ].join(" ")}
                     >
-                      <span className="flex items-baseline gap-1.5">
+                      <span className="flex items-baseline gap-2">
                         <span
                           aria-hidden
                           className="size-2 shrink-0 rounded-full"
                           style={{ background: t.accent }}
                         />
-                        <span className="text-[12px] font-bold text-ink">{t.name}</span>
-                        <span className="text-[11px] text-ink-muted">{t.koName}</span>
+                        <span className="text-[13px] font-bold text-ink">{t.name}</span>
+                        <span className="text-[12px] text-ink-muted">{t.koName}</span>
                       </span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-ink-faint">
+                      <span className="mt-0.5 block text-[11px] leading-snug text-ink-faint">
                         {t.fitFor} · {t.emphasis}
                       </span>
                     </button>
                   </li>
                 ))}
               </ul>
-              <p className="mt-1.5 text-[10px] leading-snug text-ink-faint">
+              <p className="mt-1.5 text-[11px] leading-snug text-ink-faint">
                 템플릿·색·서체 변경은 문서 표현만 바꿉니다. 매칭률은 달라지지 않습니다.
               </p>
             </Control>
           </section>
 
           {/* 편집 상태 */}
-          <section className="rounded-sm border border-rule bg-canvas px-3 py-2.5">
-            <h3 className="text-[12px] font-bold text-ink">이 판본의 문장</h3>
-            <dl className="tabular mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+          <section className="rounded-sm border border-rule bg-canvas px-5 py-4 shadow-card">
+            <h3 className="text-[15px] font-bold text-ink">이 판본의 문장</h3>
+            <dl className="tabular mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
               <dt className="text-ink-faint">전체</dt>
               <dd className="text-right font-medium text-ink">{stats.total}</dd>
               <dt className="text-ink-faint">수정함</dt>
@@ -204,7 +208,7 @@ export function ResumeWorkbench({
               }
             />
           ) : (
-            <p className="rounded-sm border border-dashed border-rule-strong px-3 py-2.5 text-[11px] leading-snug text-ink-faint">
+            <p className="rounded-sm border border-dashed border-rule-strong px-4 py-4 text-[12px] leading-relaxed text-ink-faint">
               오른쪽 지면에서 문장을 누르면 여기서 편집할 수 있습니다.
             </p>
           )}
@@ -212,7 +216,7 @@ export function ResumeWorkbench({
           <NarrativePanel set={resumes} />
         </div>
 
-        <div className="overflow-x-auto rounded-sm bg-surface-sunken p-3">
+        <div className="overflow-x-auto rounded-sm bg-surface-sunken p-4">
           <ResumeDocumentView
             doc={doc}
             onLineClick={(line) => setActiveLine(line)}
@@ -226,8 +230,8 @@ export function ResumeWorkbench({
 
 function Control({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mt-2.5">
-      <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-faint">{label}</p>
+    <div className="mt-5">
+      <p className="mb-2 text-[12px] font-semibold tracking-wide text-ink-faint">{label}</p>
       {children}
     </div>
   );
@@ -248,7 +252,7 @@ function Toggle({
       onClick={onClick}
       aria-pressed={active}
       className={[
-        "rounded-sm border px-2 py-1 text-[12px] font-medium transition-colors",
+        "rounded-sm border px-3.5 py-2 text-[13px] font-medium transition-colors",
         active
           ? "border-ink bg-ink text-white"
           : "border-rule-strong bg-canvas text-ink-muted hover:border-ink hover:text-ink",

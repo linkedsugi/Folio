@@ -20,17 +20,17 @@ export function Callout({ tone = "neutral", title, children, plain, className }:
   return (
     <div
       className={clsx(
-        "rounded-sm border-l-4 px-3 py-2",
+        "rounded-sm border-l-4 px-4 py-3",
         TONE_ACCENT[tone],
         plain ? "bg-canvas" : TONE_SOFT[tone],
         className,
       )}
     >
       {title ? (
-        <p className={clsx("text-[12px] font-bold", plain ? TONE_TEXT[tone] : undefined)}>{title}</p>
+        <p className={clsx("text-[13px] font-bold", plain ? TONE_TEXT[tone] : undefined)}>{title}</p>
       ) : null}
       {children ? (
-        <div className={clsx("text-[12px] leading-relaxed text-ink", title && "mt-0.5")}>
+        <div className={clsx("text-[13px] leading-relaxed text-ink", title && "mt-1")}>
           {children}
         </div>
       ) : null}

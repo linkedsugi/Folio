@@ -22,13 +22,13 @@ export function Disclosure({ summary, children, defaultOpen, name, className }: 
       name={name}
       className={clsx("group rounded-sm border border-rule bg-canvas", className)}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-brand hover:bg-surface-sunken">
-        <span aria-hidden className="text-[10px] transition-transform group-open:rotate-90">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-[13px] font-semibold text-brand hover:bg-surface-sunken">
+        <span aria-hidden className="text-[11px] transition-transform group-open:rotate-90">
           ▶
         </span>
         <span className="min-w-0 flex-1">{summary}</span>
       </summary>
-      <div className="border-t border-rule px-3 py-2 text-[12px] leading-relaxed text-ink">
+      <div className="border-t border-rule px-4 py-3 text-[13px] leading-relaxed text-ink">
         {children}
       </div>
     </details>

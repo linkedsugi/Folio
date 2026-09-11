@@ -22,53 +22,63 @@ import { StoryCardView } from "./StoryCardView";
 import { ActionCardView } from "./ActionCardView";
 import { DimensionDetail } from "./DimensionDetail";
 import { CandidacyPanel } from "./CandidacyPanel";
+import { makeRefinedLookup } from "./refined";
 
 export function ReportView({
   report,
   posting,
   profile,
   forPrint = false,
+  changedPaths,
 }: {
   report: StrategyReport;
   posting: JobPosting;
   profile: ApplicantProfile;
   forPrint?: boolean;
+  /**
+   * 정밀 분석이 다듬은 자리. /api/analyze 가 돌려준 것을 그대로 넘긴다.
+   * 넘기지 않으면 표식이 하나도 뜨지 않으므로, 기존 호출부는 그대로 두어도 된다.
+   */
+  changedPaths?: string[];
 }) {
   const byPriority = [1, 2, 3].map(
     (p) => [p as 1 | 2 | 3, report.actions.filter((a) => a.priority === p)] as const,
   );
+  // 문장마다 배열을 훑지 않도록 한 번만 만들어 아래로 내려 보낸다.
+  const refined = makeRefinedLookup(changedPaths);
 
   return (
-    <article className={forPrint ? "print-page mx-auto max-w-[210mm] bg-canvas" : "space-y-8"}>
+    <article className={forPrint ? "print-page mx-auto max-w-[210mm] bg-canvas" : "space-y-10"}>
       {/* ── 표지 겸 1 한눈에 보는 요약 ───────────────────────── */}
-      <section className={forPrint ? "space-y-4" : "space-y-4"}>
-        <header className="doc-rule pb-2">
-          <p className="text-[11px] font-semibold tracking-wide text-brand">
+      <section className="space-y-5">
+        <header className="doc-rule pb-3">
+          <p className="text-[12px] font-semibold tracking-wide text-brand">
             MINDCANVAS / ROLEFIT CANVAS
           </p>
-          <h1 className="mt-1.5 text-xl leading-tight font-bold text-ink sm:text-2xl">
+          <h1 className="mt-2 text-xl leading-tight font-bold text-ink sm:text-2xl">
             지원전략 분석서
           </h1>
-          <p className="mt-0.5 text-[13px] text-ink-muted">
+          <p className="mt-1 text-[14px] text-ink-muted">
             {posting.company}
             {posting.team ? ` · ${posting.team}` : ""} · {posting.roleTitle} — {profile.name}
           </p>
-          <p className="mt-1 text-[11px] text-ink-faint">
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-faint">
             지원자 전용 자료입니다. 기본 비공개이며, 이 문서의 점수·부족한 부분·미래 계획은 기업
             제출용 이력서에 들어가지 않습니다.
           </p>
         </header>
 
-        <h2 className="text-[15px] font-bold text-ink">1 한눈에 보는 요약</h2>
+        <h2 className="text-[16px] font-bold text-ink">1 한눈에 보는 요약</h2>
 
         <IdealCandidateCard
           ideal={report.idealCandidate}
           requirements={posting.requirements}
           compact
+          refined={refined}
         />
 
         {/* 전체 3단계 매칭 */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {(["current", "afterStory", "target"] as const).map((stage) => {
             const tone =
               stage === "current"
@@ -77,12 +87,15 @@ export function ReportView({
                   ? "border-story-rule bg-story-soft text-story"
                   : "border-goal-rule bg-goal-soft text-goal";
             return (
-              <div key={stage} className={`avoid-break rounded-sm border px-3 py-2.5 ${tone}`}>
-                <p className="text-[11px] font-semibold">{STAGE_META[stage].title}</p>
-                <p className="tabular text-2xl leading-none font-bold sm:text-3xl">
+              <div
+                key={stage}
+                className={`avoid-break rounded-sm border px-3 py-3.5 sm:px-4 ${tone}`}
+              >
+                <p className="text-[12px] leading-snug font-semibold">{STAGE_META[stage].title}</p>
+                <p className="tabular mt-1 text-2xl leading-none font-bold sm:text-3xl">
                   {report.overall.display[stage]}%
                 </p>
-                <p className="mt-1 text-[10px] leading-snug opacity-90">
+                <p className="mt-1.5 text-[11px] leading-snug opacity-90">
                   {STAGE_META[stage].caption}
                 </p>
               </div>
@@ -100,19 +113,19 @@ export function ReportView({
         />
 
         {/* 지금 지원한다면 — 숫자와 분리된 판단 이야기 */}
-        <CandidacyPanel candidacy={report.candidacyNow} profile={profile} />
+        <CandidacyPanel candidacy={report.candidacyNow} profile={profile} refined={refined} />
 
         {/* 우선 행동 */}
-        <div className="avoid-break rounded-sm border border-rule bg-canvas px-4 py-3">
-          <h3 className="text-[13px] font-bold text-ink">먼저 할 일</h3>
-          <ol className="mt-1.5 space-y-1.5">
+        <div className="avoid-break rounded-sm border border-rule bg-canvas px-5 py-4">
+          <h3 className="text-[14px] font-bold text-ink">먼저 할 일</h3>
+          <ol className="mt-2.5 space-y-2">
             {byPriority.map(([p, items]) =>
               items.length === 0 ? null : (
-                <li key={p} className="text-[12px] leading-snug">
+                <li key={p} className="text-[13px] leading-relaxed">
                   <span className="font-bold text-ink">
                     {p} {PRIORITY_LABEL[p]}
                   </span>
-                  <span className="ml-1.5 text-ink-muted">
+                  <span className="ml-2 text-ink-muted">
                     {items.map((a) => a.gap).join(" · ")}
                   </span>
                 </li>
@@ -121,19 +134,24 @@ export function ReportView({
           </ol>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-ink-faint">읽는 법: {READING_NOTE}</p>
+        {/* 보조 문구는 본문을 밀어내지 않도록 한 단계만 키운다. */}
+        <p className="text-[12px] leading-relaxed text-ink-faint">읽는 법: {READING_NOTE}</p>
       </section>
 
       {/* ── 2 인재상·매칭 근거 ───────────────────────── */}
-      <section className={forPrint ? "page-break space-y-3 pt-6" : "space-y-3"}>
+      <section className={forPrint ? "page-break space-y-4 pt-8" : "space-y-4"}>
         <div>
-          <h2 className="text-[15px] font-bold text-ink">2 인재상·매칭 근거</h2>
-          <p className="text-[12px] text-ink-muted">
+          <h2 className="text-[16px] font-bold text-ink">2 인재상·매칭 근거</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
             왜 이런 인재상과 점수가 나왔는지, 공고의 실제 문구와 함께 확인합니다.
           </p>
         </div>
-        <IdealCandidateCard ideal={report.idealCandidate} requirements={posting.requirements} />
-        <div className="space-y-3">
+        <IdealCandidateCard
+          ideal={report.idealCandidate}
+          requirements={posting.requirements}
+          refined={refined}
+        />
+        <div className="space-y-4">
           {report.dimensions.map((d) => (
             <DimensionDetail
               key={d.id}
@@ -141,27 +159,28 @@ export function ReportView({
               experiences={profile.experiences}
               stories={report.stories}
               actions={report.actions}
+              refined={refined}
             />
           ))}
         </div>
-        <p className="text-[11px] leading-relaxed text-ink-faint">
+        <p className="text-[12px] leading-relaxed text-ink-faint">
           {weightSummary(report.dimensions, report.overall)}
         </p>
       </section>
 
       {/* ── 3 경험 스토리 ───────────────────────── */}
       {report.stories.length > 0 ? (
-        <section className={forPrint ? "page-break space-y-3 pt-6" : "space-y-3"}>
+        <section className={forPrint ? "page-break space-y-4 pt-8" : "space-y-4"}>
           <div>
-            <h2 className="text-[15px] font-bold text-ink">3 경험 스토리</h2>
-            <p className="text-[12px] text-ink-muted">
+            <h2 className="text-[16px] font-bold text-ink">3 경험 스토리</h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
               새 경험을 만들어 넣는 것이 아니라, 실제 경험 속에서 이 직무와 연결되는 의미와 증거를
               찾습니다.
             </p>
           </div>
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             {report.stories.map((s) => (
-              <StoryCardView key={s.id} card={s} />
+              <StoryCardView key={s.id} card={s} refined={refined} />
             ))}
           </div>
         </section>
@@ -169,23 +188,23 @@ export function ReportView({
 
       {/* ── 4 실행·목표 계획 ───────────────────────── */}
       {report.actions.length > 0 ? (
-        <section className={forPrint ? "page-break space-y-3 pt-6" : "space-y-3"}>
+        <section className={forPrint ? "page-break space-y-4 pt-8" : "space-y-4"}>
           <div>
-            <h2 className="text-[15px] font-bold text-ink">4 실행·목표 계획</h2>
-            <p className="text-[12px] text-ink-muted">
+            <h2 className="text-[16px] font-bold text-ink">4 실행·목표 계획</h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
               계획 기간은 현재 수준·가용 시간·실무 기회를 확인한 뒤 정합니다. 실무 기회가 없으면
               먼저 개인 프로젝트나 협업 과제로 준비하되, 상용 경험을 대신 충족했다고 표시하지
               않습니다.
             </p>
           </div>
-          <CandidacyPanel candidacy={report.candidacyFuture} profile={profile} />
+          <CandidacyPanel candidacy={report.candidacyFuture} profile={profile} refined={refined} />
           {byPriority.map(([p, items]) =>
             items.length === 0 ? null : (
-              <div key={p} className="space-y-2">
-                <h3 className="text-[13px] font-bold text-ink">
+              <div key={p} className="space-y-3">
+                <h3 className="text-[14px] font-bold text-ink">
                   {p} {PRIORITY_LABEL[p]}
                 </h3>
-                <div className="grid gap-3 xl:grid-cols-2">
+                <div className="grid gap-4 xl:grid-cols-2">
                   {items.map((a) => (
                     <ActionCardView key={a.id} card={a} />
                   ))}
@@ -196,7 +215,7 @@ export function ReportView({
         </section>
       ) : null}
 
-      <footer className="border-t border-rule pt-3 text-[10px] leading-relaxed text-ink-faint">
+      <footer className="border-t border-rule pt-4 text-[11px] leading-relaxed text-ink-faint">
         <p>
           수치는 합격확률이 아닌 직무 매칭률입니다. 전체 목표에 도달해도 필수 조건 충족을 뜻하지
           않으며, 100%에 도달해야만 지원할 수 있는 것도 아닙니다. 예정된 학위·자격·교육·프로젝트는
@@ -210,29 +229,32 @@ export function ReportView({
 /**
  * 부문별 비교표 — 인쇄에서도 읽히도록 표 하나로 압축한다.
  * 화면의 MatchTable 은 상호작용(행 선택)이 있고, 이쪽은 읽기 전용이다.
+ *
+ * 글자를 키우면 표가 먼저 넘친다. 좁은 화면에서 페이지 전체가 가로로 밀리는 대신
+ * 표만 따로 밀리도록 overflow-x-auto 안에 두고, 최소 너비를 글자 크기에 맞춰 올린다.
  */
 function SummaryTable({ report }: { report: StrategyReport }) {
   return (
     <div className="avoid-break overflow-x-auto">
-      <table className="w-full min-w-[34rem] border-collapse text-left">
+      <table className="w-full min-w-[42rem] border-collapse text-left">
         <thead>
           <tr className="bg-ink text-white">
-            <th scope="col" className="px-2.5 py-1.5 text-[11px] font-semibold">
+            <th scope="col" className="px-3.5 py-2.5 text-[12px] font-semibold">
               모집팀의 기대
             </th>
-            <th scope="col" className="px-2 py-1.5 text-center text-[11px] font-semibold">
+            <th scope="col" className="px-3 py-2.5 text-center text-[12px] font-semibold">
               비중
             </th>
-            <th scope="col" className="px-2 py-1.5 text-center text-[11px] font-semibold">
+            <th scope="col" className="px-3 py-2.5 text-center text-[12px] font-semibold">
               현재
             </th>
-            <th scope="col" className="px-2 py-1.5 text-center text-[11px] font-semibold">
+            <th scope="col" className="px-3 py-2.5 text-center text-[12px] font-semibold">
               스토리 후
             </th>
-            <th scope="col" className="px-2 py-1.5 text-center text-[11px] font-semibold">
+            <th scope="col" className="px-3 py-2.5 text-center text-[12px] font-semibold">
               목표
             </th>
-            <th scope="col" className="px-2.5 py-1.5 text-[11px] font-semibold">
+            <th scope="col" className="px-3.5 py-2.5 text-[12px] font-semibold">
               남는 차이
             </th>
           </tr>
@@ -240,27 +262,27 @@ function SummaryTable({ report }: { report: StrategyReport }) {
         <tbody className="divide-y divide-rule">
           {report.dimensions.map((d) => (
             <tr key={d.id} className="align-top odd:bg-canvas even:bg-surface">
-              <td className="px-2.5 py-1.5 text-[12px] font-medium text-ink">
+              <td className="px-3.5 py-2.5 text-[13px] font-medium text-ink">
                 {d.label}
                 {d.kind === "must" ? (
-                  <span className="ml-1 text-[10px] text-ink-muted">[필수]</span>
+                  <span className="ml-1.5 text-[11px] text-ink-muted">[필수]</span>
                 ) : d.kind === "preferred" ? (
-                  <span className="ml-1 text-[10px] text-ink-faint">[우대]</span>
+                  <span className="ml-1.5 text-[11px] text-ink-faint">[우대]</span>
                 ) : null}
               </td>
-              <td className="tabular px-2 py-1.5 text-center text-[12px] text-ink-faint">
+              <td className="tabular px-3 py-2.5 text-center text-[13px] text-ink-faint">
                 {d.weight}%
               </td>
-              <td className="tabular bg-now-soft px-2 py-1.5 text-center text-[12px] font-semibold text-now">
+              <td className="tabular bg-now-soft px-3 py-2.5 text-center text-[13px] font-semibold text-now">
                 {d.current}%
               </td>
-              <td className="tabular bg-story-soft px-2 py-1.5 text-center text-[12px] font-semibold text-story">
+              <td className="tabular bg-story-soft px-3 py-2.5 text-center text-[13px] font-semibold text-story">
                 {d.afterStory}%
               </td>
-              <td className="tabular bg-goal-soft px-2 py-1.5 text-center text-[12px] font-semibold text-goal">
+              <td className="tabular bg-goal-soft px-3 py-2.5 text-center text-[13px] font-semibold text-goal">
                 {d.target}%
               </td>
-              <td className="px-2.5 py-1.5 text-[11px] leading-snug text-ink-muted">
+              <td className="px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-muted">
                 {d.remainingGap}
               </td>
             </tr>

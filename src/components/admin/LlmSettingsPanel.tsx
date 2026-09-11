@@ -75,16 +75,16 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
       className={clsx("rounded-sm border border-rule bg-canvas", className)}
       aria-busy={loading}
     >
-      <header className="border-b border-rule bg-surface-sunken px-4 py-2.5">
-        <p className="text-[11px] font-semibold tracking-wide text-brand">선택 기능</p>
-        <h2 className="mt-0.5 text-sm font-bold text-ink">정밀 분석</h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
+      <header className="border-b border-rule bg-surface-sunken px-5 py-3">
+        <p className="text-[12px] font-semibold tracking-wide text-brand">선택 기능</p>
+        <h2 className="mt-1 text-[16px] font-bold text-ink">정밀 분석</h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
           분석과 이력서 작성은 켜지 않아도 규칙 기반으로 그대로 동작합니다. 정밀 분석은 그 결과를
           모델로 한 번 더 다듬는 선택 사항이고, 실패하면 조용히 규칙 기반 결과로 돌아갑니다.
         </p>
       </header>
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="space-y-5 px-5 py-5">
         {/* 켜기 전에 반드시 읽어야 하는 내용. 상태와 상관없이 항상 보인다. */}
         <Callout tone="warn" title="켜기 전에 읽어 주세요">
           정밀 분석을 켜면 지원자의 공고와 이력이 모델 제공자에게 전송됩니다. 지금까지 이 앱은
@@ -93,7 +93,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
         </Callout>
 
         {!hydrated ? (
-          <p className="py-4 text-center text-[12px] text-ink-muted">설정을 불러오는 중…</p>
+          <p className="py-5 text-center text-[13px] text-ink-muted">설정을 불러오는 중…</p>
         ) : (
           <>
             {/* 0. 바꾸지 못했다면 그 이유를 먼저 말한다 — 체크박스만 되돌아가면 침묵이다. */}
@@ -102,7 +102,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
                 <Callout tone="danger" title="설정을 바꾸지 못했습니다">
                   <p>{error.reason}</p>
                   {/* 되돌아간 값이 무엇인지도 함께 말한다 — 화면에 남은 값을 오해하지 않도록. */}
-                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                  <p className="mt-1 text-[12px] text-ink-muted">
                     {error.status > 0
                       ? `서버 응답 ${error.status} · 아래 값은 지금 서버에 저장된 설정입니다.`
                       : "서버의 설정을 확인하지 못해 아래 값은 꺼짐으로 두었습니다."}
@@ -112,8 +112,8 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
             ) : null}
 
             {/* 1. 켜기/끄기 */}
-            <div className="rounded-sm border border-rule bg-surface px-3 py-2.5">
-              <label htmlFor={toggleId} className="flex cursor-pointer items-start gap-2.5">
+            <div className="rounded-sm border border-rule bg-surface px-4 py-3">
+              <label htmlFor={toggleId} className="flex cursor-pointer items-start gap-3">
                 <input
                   id={toggleId}
                   type="checkbox"
@@ -124,15 +124,15 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
                   className="mt-0.5 size-4 shrink-0 accent-[var(--color-ink)] disabled:cursor-not-allowed"
                 />
                 <span className="min-w-0">
-                  <span className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="text-[13px] font-bold text-ink">정밀 분석 켜기</span>
+                  <span className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-[14px] font-bold text-ink">정밀 분석 켜기</span>
                     <Badge tone={settings.enabled ? "ok" : "neutral"} size="xs">
                       {settings.enabled ? "켜짐" : "꺼짐"}
                     </Badge>
                   </span>
                   <span
                     id={toggleHintId}
-                    className="mt-0.5 block text-[12px] leading-snug text-ink-muted"
+                    className="mt-1 block text-[13px] leading-relaxed text-ink-muted"
                   >
                     기본값은 꺼짐입니다. 켜도 지원자가 분석할 때마다 따로 동의해야 자료가
                     전송됩니다.
@@ -151,12 +151,12 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
 
             {/* 2. 모델 선택 */}
             <fieldset className="min-w-0" aria-describedby={modelGroupId}>
-              <legend className="text-[12px] font-semibold text-ink">분석에 쓸 모델</legend>
-              <p id={modelGroupId} className="mt-0.5 text-[11px] leading-snug text-ink-faint">
+              <legend className="text-[13px] font-semibold text-ink">분석에 쓸 모델</legend>
+              <p id={modelGroupId} className="mt-1 text-[12px] leading-snug text-ink-faint">
                 정밀 분석이 켜져 있을 때만 쓰입니다. 어느 모델을 고르든 점수와 문장은 지원자가 입력한
                 실제 경험에서만 나옵니다.
               </p>
-              <ul className="mt-1.5 space-y-1.5">
+              <ul className="mt-2.5 space-y-2">
                 {MODEL_OPTIONS.map((model) => {
                   const inputId = `${toggleId}-${model.id}`;
                   const noteId = `${inputId}-note`;
@@ -166,7 +166,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
                       <label
                         htmlFor={inputId}
                         className={clsx(
-                          "flex cursor-pointer items-start gap-2.5 rounded-sm border px-3 py-2",
+                          "flex cursor-pointer items-start gap-3 rounded-sm border px-4 py-3",
                           on ? "border-rule-strong bg-surface" : "border-rule bg-canvas",
                         )}
                       >
@@ -182,8 +182,8 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
                           className="mt-0.5 shrink-0 accent-[var(--color-ink)] disabled:cursor-not-allowed"
                         />
                         <span className="min-w-0">
-                          <span className="flex flex-wrap items-baseline gap-1.5">
-                            <span className="text-[13px] font-semibold text-ink">{model.label}</span>
+                          <span className="flex flex-wrap items-baseline gap-2">
+                            <span className="text-[14px] font-semibold text-ink">{model.label}</span>
                             <Badge tone={model.tier === "fast" ? "neutral" : "brand"} size="xs">
                               {TIER_LABEL[model.tier]}
                             </Badge>
@@ -195,7 +195,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
                           </span>
                           <span
                             id={noteId}
-                            className="mt-0.5 block text-[12px] leading-snug text-ink-muted"
+                            className="mt-1 block text-[13px] leading-relaxed text-ink-muted"
                           >
                             {model.note}
                           </span>
@@ -208,7 +208,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
             </fieldset>
 
             {/* 4. 마지막 변경 — 운영 기록 */}
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-rule pt-2.5 text-[11px] text-ink-faint">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-rule pt-3.5 text-[12px] text-ink-faint">
               <span className="font-semibold">마지막 변경</span>
               {settings.updatedAt || settings.updatedBy ? (
                 <>
@@ -223,7 +223,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
             </div>
 
             {!admin ? (
-              <p className="text-[11px] leading-snug text-ink-faint">
+              <p className="text-[12px] leading-snug text-ink-faint">
                 설정을 바꾸는 것은 관리자만 할 수 있습니다. 지금은 보기만 할 수 있습니다.
               </p>
             ) : null}
