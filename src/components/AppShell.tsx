@@ -9,6 +9,7 @@
 import Link from "next/link";
 import type { Application, StageId } from "@/lib/types";
 import { StageRail } from "@/components/ui";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 export function AppShell({
   app,
@@ -69,7 +70,11 @@ export function AppShell({
                 </nav>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <span className="flex-1" />
+          )}
+
+          <UserMenu />
         </div>
       </header>
 
