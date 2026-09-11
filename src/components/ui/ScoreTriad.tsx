@@ -48,7 +48,7 @@ export function ScoreTriad({ overall, active }: ScoreTriadProps) {
               title={meta.meaning}
               aria-current={isActive ? "true" : undefined}
               className={clsx(
-                "min-w-0 flex-1 rounded-sm border-2 bg-canvas px-4 py-3",
+                "min-w-0 rounded-sm border-2 bg-canvas px-4 py-3 sm:flex-1",
                 isActive ? tone.border : "border-rule",
               )}
             >
