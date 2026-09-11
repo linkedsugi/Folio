@@ -1,0 +1,70 @@
+# RoleFit Canvas — GitHub Pages 배포
+#
+# 정적으로 내보낸다. 분석 엔진과 이력서 생성은 모두 브라우저에서 돌고,
+# 파일 읽기도 기기 안에서 하므로 서버 없이 온전히 동작한다.
+# 빠지는 것은 "공고 URL 가져오기" 하나이고, 화면이 붙여넣기로 안내한다.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, claude/loving-dirac-u27hkn]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 하나씩. 진행 중인 배포를 취소하지 않는다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 배포본이 깨진 채로 올라가지 않도록, 배포 전에 같은 검증을 돌린다.
+      - name: 타입 검사
+        run: npm run typecheck
+      - name: 테스트
+        run: npm test
+
+      - uses: actions/configure-pages@v5
+        id: pages
+
+      - name: 정적 빌드
+        env:
+          BUILD_TARGET: static
+          # 저장소 이름 아래에 올라가므로 basePath 가 필요하다.
+          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          node scripts/prepare-static.mjs
+          npx next build
+
+      # Pages 는 _next 로 시작하는 경로를 Jekyll 이 건너뛰게 두면 404 가 난다.
+      - run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -9,7 +9,8 @@
  */
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { extractTextFromFile, fetchJobPosting } from "@/lib/extract-client";
 
 export interface IntakeValue {
   jdText: string;
@@ -34,7 +35,6 @@ export function IntakeScreen({ value, onChange, onSubmit, busy }: IntakeScreenPr
   const [candidates, setCandidates] = useState<{ title: string; body: string }[]>([]);
   const [fetching, setFetching] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const ready = value.jdText.trim().length > 40 && value.profileText.trim().length > 40;
 
@@ -44,12 +44,7 @@ export function IntakeScreen({ value, onChange, onSubmit, busy }: IntakeScreenPr
     setFetching(true);
     setJdNotice(null);
     try {
-      const res = await fetch("/api/fetch-jd", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
+      const data = await fetchJobPosting(url);
       if (data?.ok && typeof data.text === "string" && data.text.trim().length > 40) {
         onChange({ jdText: data.text });
         // 한 페이지에 여러 공고가 있으면 지원할 공고 하나를 고르게 한다. (기획서 02)
@@ -80,32 +75,28 @@ export function IntakeScreen({ value, onChange, onSubmit, busy }: IntakeScreenPr
     }
   }
 
+  /** 파일은 이 기기 안에서 읽는다. 이력서 파일을 서버로 보내지 않기 위해서다. */
   async function extractFile(file: File, target: "jd" | "profile") {
     setExtracting(true);
     const setNotice = target === "jd" ? setJdNotice : setProfileNotice;
     setNotice(null);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/extract", { method: "POST", body: form });
-      const data = await res.json();
-      if (data?.ok && typeof data.text === "string" && data.text.trim()) {
+      const data = await extractTextFromFile(file);
+      if (data.ok && data.text.trim()) {
         onChange(target === "jd" ? { jdText: data.text } : { profileText: data.text });
-        const warn = Array.isArray(data.warnings) && data.warnings.length > 0;
         setNotice({
-          tone: warn ? "warn" : "ok",
-          text: warn
-            ? data.warnings.join(" ")
-            : `${file.name} 에서 텍스트를 가져왔습니다. 빠진 내용이 없는지 확인해 주세요.`,
+          tone: data.warnings.length > 0 ? "warn" : "ok",
+          text:
+            data.warnings.length > 0
+              ? data.warnings.join(" ")
+              : `${file.name} 에서 텍스트를 가져왔습니다. 빠진 내용이 없는지 확인해 주세요.`,
         });
       } else {
         setNotice({
           tone: "warn",
-          text: data?.reason ?? "파일에서 텍스트를 찾지 못했습니다. 내용을 직접 붙여넣어 주세요.",
+          text: data.reason ?? "파일에서 텍스트를 찾지 못했습니다. 내용을 직접 붙여넣어 주세요.",
         });
       }
-    } catch {
-      setNotice({ tone: "warn", text: "파일을 읽지 못했습니다. 내용을 직접 붙여넣어 주세요." });
     } finally {
       setExtracting(false);
     }
