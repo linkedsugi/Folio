@@ -660,8 +660,10 @@ function extractDocumentRules(body: string): JobPosting["documentRules"] | undef
   const rules: NonNullable<JobPosting["documentRules"]> = {};
   const quotes: string[] = [];
 
-  const koMatch = /(국문|한국어|한글)\s*(이력서|자기소개서|지원서|작성)?/.exec(body);
-  const enMatch = /(영문|영어|English)\s*(이력서|resume|cv|지원서)?/i.exec(body);
+  // 문서 언어는 "국문 이력서" 처럼 문서를 가리킬 때만 본다.
+  // 본문에 "영어 커뮤니케이션" 같은 표현이 있다고 영문 이력서로 바꾸면 안 된다.
+  const koMatch = /(?:국문|한국어|한글)\s*(?:이력서|자기소개서|지원서|resume|cv)/i.exec(body);
+  const enMatch = /(?:영문|영어|English)\s*(?:이력서|자기소개서|지원서|resume|cv)/i.exec(body);
   let language: Language | undefined;
   if (enMatch && !koMatch) language = "en";
   else if (koMatch && !enMatch) language = "ko";
