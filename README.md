@@ -132,8 +132,9 @@ Google 로그인을 함께 쓰려면 두 가지가 더 필요합니다.
 1. Google Cloud Console 에서 **웹 애플리케이션** 용 OAuth 클라이언트 ID 를 만들고,
    승인된 JavaScript 원본에 배포 주소(`https://<사용자>.github.io`)를 넣습니다.
 2. 저장소 **Settings → Secrets and variables → Actions → Variables** 에
-   `NEXT_PUBLIC_GOOGLE_CLIENT_ID` 를 추가하고, 워크플로의 정적 빌드 단계 `env` 에
-   `NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}` 를 더합니다.
+   `NEXT_PUBLIC_GOOGLE_CLIENT_ID` 를 추가합니다. 워크플로는 이미 이 값을 읽습니다.
+   (공개 클라이언트 ID 라 Secrets 가 아니라 Variables 입니다 — 비밀이 아니고
+   빌드 결과에 그대로 들어갑니다.)
 
 설정하지 않아도 앱은 그대로 동작하고, 로그인 자리에는 "설정되어 있지 않습니다" 안내가 나옵니다.
 
