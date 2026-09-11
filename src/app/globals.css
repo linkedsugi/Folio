@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/*
+ * RoleFit Canvas — 디자인 토큰
+ * 기획서 문서의 시각 언어를 그대로 옮긴다.
+ *   네이비 헤더 / 얇은 규칙선 / 표 중심 레이아웃 /
+ *   현재(청색) · 스토리 후(민트) · 목표(황색) 3색 단계 표시
+ */
+
+@theme {
+  /* 기본 면 */
+  --color-canvas: #ffffff;
+  --color-surface: #f7f8fa;
+  --color-surface-sunken: #eef1f5;
+
+  /* 잉크 */
+  --color-ink: #12263f;
+  --color-ink-strong: #0b1b2e;
+  --color-ink-muted: #5a6b80;
+  --color-ink-faint: #8a97a8;
+
+  /* 규칙선 */
+  --color-rule: #dde3ea;
+  --color-rule-strong: #c3ccd8;
+
+  /* 브랜드 */
+  --color-brand: #1f5fa8;
+  --color-brand-strong: #17497f;
+  --color-brand-soft: #e9f0f9;
+
+  /* 매칭 3단계 */
+  --color-now: #2b6cb0;
+  --color-now-soft: #edf2fa;
+  --color-now-rule: #c8d8ee;
+
+  --color-story: #1b8a63;
+  --color-story-soft: #e9f5f0;
+  --color-story-rule: #bde0d1;
+
+  --color-goal: #b07514;
+  --color-goal-soft: #fdf4e3;
+  --color-goal-rule: #f0dcb4;
+
+  /* 상태 */
+  --color-warn: #b3541e;
+  --color-warn-soft: #fcefe7;
+  --color-danger: #a72f36;
+  --color-danger-soft: #fbecec;
+  --color-ok: #1b7a4b;
+  --color-ok-soft: #e8f5ee;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* 한글 가독성: 단어 단위 줄바꿈 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 숫자를 표에서 세로로 맞춘다 */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 문서 상단 규칙선 — 기획서의 머리글 */
+.doc-rule {
+  border-bottom: 2px solid var(--color-ink);
+}
+
+/* 포커스 링 */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 스크롤바 */
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-rule-strong) transparent;
+  }
+}
+
+/* ── 인쇄 / PDF 내보내기 ─────────────────────────────
+   이력서·분석서는 브라우저 인쇄로 PDF 를 만든다.
+   한글 글꼴이 그대로 임베드되므로 라이브러리 변환보다 정확하다. */
+@page {
+  size: A4;
+  margin: 16mm 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-page {
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  .page-break {
+    break-before: page;
+  }
+  .avoid-break {
+    break-inside: avoid;
+  }
+  a[href]::after {
+    content: "";
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
