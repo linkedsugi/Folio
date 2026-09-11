@@ -42,6 +42,9 @@ jobs:
 
       - uses: actions/configure-pages@v5
         id: pages
+        with:
+          # 저장소에서 Pages 를 아직 켜지 않았다면 이 단계가 켠다.
+          enablement: true
 
       - name: 정적 빌드
         env:
