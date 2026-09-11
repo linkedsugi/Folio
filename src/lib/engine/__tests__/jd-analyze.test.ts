@@ -96,7 +96,8 @@ describe("analyzeJobPosting · 공고 기본 정보", () => {
 describe("analyzeJobPosting · 필수와 우대", () => {
   it("필수와 우대를 구분하고 짧은 이름(label)을 만든다", () => {
     const posting = analyzeKo();
-    const must = posting.requirements.filter((r) => r.kind === "must");
+    // 공고에 적힌 조건만 센다. 업무 설명에서 읽어낸 해석은 derivation 으로 구분된다.
+    const must = posting.requirements.filter((r) => r.kind === "must" && r.derivation === "stated");
     const preferred = posting.requirements.filter((r) => r.kind === "preferred");
     expect(must).toHaveLength(3);
     expect(preferred).toHaveLength(2);
@@ -161,7 +162,7 @@ describe("analyzeJobPosting · 다양한 입력 형태", () => {
     expect(posting.roleTitle).toBe("Applied AI Research Fellow");
     expect(posting.company).toBe("Asterflow Labs");
     expect(posting.responsibilities).toHaveLength(2);
-    const must = posting.requirements.filter((r) => r.kind === "must");
+    const must = posting.requirements.filter((r) => r.kind === "must" && r.derivation === "stated");
     expect(must).toHaveLength(2);
     expect(must[0].equivalence).toBe("unknown");
     expect(must[1].equivalence).toBe("allowed"); // "or equivalent"
@@ -173,7 +174,9 @@ describe("analyzeJobPosting · 다양한 입력 형태", () => {
     expect(posting.roleTitle).toBe("Junior Data Analyst");
     expect(posting.responsibilities).toHaveLength(3);
     expect(posting.responsibilities[2]).toContain("재현 가능한 분석 사례");
-    expect(posting.requirements.filter((r) => r.kind === "must")).toHaveLength(2);
+    expect(
+      posting.requirements.filter((r) => r.kind === "must" && r.derivation === "stated"),
+    ).toHaveLength(2);
     // 회사명을 찾지 못했으므로 직접 입력하라고 안내해야 한다
     expect(posting.company).toBe("");
     expect(posting.reviewFlags.some((f) => f.field === "company" && f.severity === "warn")).toBe(true);
@@ -218,5 +221,42 @@ describe("toRequirementLabel", () => {
     expect(toRequirementLabel("성능 분석·최적화 경험")).toBe("성능 분석·최적화");
     expect(toRequirementLabel("라이브 서비스 장기 운영 경험이 있으신 분")).toBe("라이브 서비스 장기 운영");
     expect(toRequirementLabel("Unity 를 사용해 본 경험").length).toBeLessThanOrEqual(25);
+  });
+});
+
+describe("공고에 명시된 조건과 앱의 해석을 구분한다", () => {
+  const posting = analyzeJobPosting({
+    rawText: `루멘플레이 스튜디오
+Senior Unity Gameplay Engineer
+
+주요 업무
+- 핵심 게임 기능을 설계하고 구현합니다.
+- 출시 이후 라이브 서비스의 장애에 대응하고 패치를 배포합니다.
+
+자격 요건
+- 상용 게임 개발 경력 5년 이상
+- Unity 와 C# 으로 기능을 구현한 경험
+`,
+    sourceType: "paste",
+  });
+
+  it("자격 요건에서 뽑은 조건은 stated 다", () => {
+    const stated = posting.requirements.filter((r) => r.derivation === "stated");
+    expect(stated.length).toBeGreaterThanOrEqual(2);
+    for (const r of stated) {
+      // 명시 조건의 근거는 공고 본문에 실제로 있어야 한다.
+      expect(posting.body).toContain(r.sourceQuote.replace(/^[-•·▪\s]+/, "").trim());
+    }
+  });
+
+  it("자격 요건이 덮지 못한 업무 기대는 inferred 로 남기고 이유를 붙인다", () => {
+    const inferred = posting.requirements.filter((r) => r.derivation === "inferred");
+    for (const r of inferred) {
+      expect(r.inferenceNote).toBeTruthy();
+    }
+    // 해석이 명시 조건보다 많아지면 분석이 추측처럼 보인다.
+    const stated = posting.requirements.filter((r) => r.derivation === "stated");
+    expect(inferred.length).toBeLessThanOrEqual(stated.length);
+    expect(inferred.length).toBeLessThanOrEqual(2);
   });
 });

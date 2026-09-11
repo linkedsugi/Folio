@@ -18,6 +18,7 @@ import type {
   Language,
   RationaleNote,
   Requirement,
+  RequirementDerivation,
   RequirementKind,
   ResponsibilityLevel,
   ReviewFlag,
@@ -31,6 +32,7 @@ import {
   shortHash,
   shorten,
   splitBulletItems,
+  tokenize,
   unique,
 } from "./text-utils";
 
@@ -478,16 +480,61 @@ export function toRequirementLabel(text: string): string {
   return shorten(label, 24);
 }
 
-function buildRequirement(item: BulletItem, kind: RequirementKind, index: number): Requirement {
+function buildRequirement(
+  item: BulletItem,
+  kind: RequirementKind,
+  index: number,
+  derivation: RequirementDerivation = "stated",
+  inferenceNote?: string,
+): Requirement {
   const text = item.text.trim();
   return {
-    id: `req-${kind}-${index + 1}`,
+    id: `req-${kind}-${index + 1}${derivation === "inferred" ? "-inf" : ""}`,
     kind,
     label: toRequirementLabel(text),
     text,
     equivalence: detectEquivalence(text, kind),
     sourceQuote: item.raw, // 원문 줄 그대로 — 근거로 보여줘야 한다
+    // 자격 요건 절에서 뽑은 것은 공고에 명시된 조건이다.
+    derivation,
+    inferenceNote,
   };
+}
+
+/**
+ * 주요 업무에서 읽어낸 기대를 조건으로 덧붙인다.
+ *
+ * 공고가 자격 요건에 적지 않았더라도, 업무 설명에 "성능 문제를 해결하고 출시 품질을 책임진다"가
+ * 있으면 그 팀이 기대하는 사람의 모습은 분명하다. 그 해석은 유용하다.
+ * 다만 명시된 조건과 같은 무게로 보이면 안 되므로 derivation: 'inferred' 로 남긴다.
+ */
+function inferRequirementsFromDuties(
+  responsibilities: BulletItem[],
+  stated: Requirement[],
+): Requirement[] {
+  const statedTokens = new Set(
+    stated.flatMap((r) => tokenize(`${r.label} ${r.text}`)).filter((t) => t.length > 1),
+  );
+
+  const out: Requirement[] = [];
+  responsibilities.forEach((item, i) => {
+    const tokens = tokenize(item.text).filter((t) => t.length > 1);
+    if (tokens.length === 0) return;
+    // 이미 명시 조건이 덮고 있는 업무는 다시 만들지 않는다.
+    const covered = tokens.filter((t) => statedTokens.has(t)).length / tokens.length;
+    if (covered >= 0.4) return;
+    out.push(
+      buildRequirement(
+        item,
+        "must",
+        stated.length + i + 1,
+        "inferred",
+        "자격 요건이 아니라 주요 업무 설명에서 읽어낸 기대입니다. 모집팀의 공식 요건과 다를 수 있습니다.",
+      ),
+    );
+  });
+  // 해석으로 만든 조건이 명시 조건보다 많아지면 분석이 추측처럼 보인다. 상위 2개만 쓴다.
+  return out.slice(0, 2);
 }
 
 /* ────────────────────────────────────────────── 인재상 */
@@ -783,9 +830,18 @@ export function analyzeJobPosting(input: AnalyzeJobPostingInput | string): JobPo
 
   const mustItems = itemsOf(sections, "must");
   const preferredItems = itemsOf(sections, "preferred");
-  const requirements: Requirement[] = [
+  const statedRequirements: Requirement[] = [
     ...mustItems.map((item, i) => buildRequirement(item, "must", i)),
     ...preferredItems.map((item, i) => buildRequirement(item, "preferred", i)),
+  ];
+  /*
+   * 명시 조건만 뽑고 끝내면 "Unity, C#, 5년" 같은 키워드 목록이 된다.
+   * 이 팀이 맡기려는 일까지 읽어야 인재상이 사람의 모습으로 보인다.
+   * 다만 해석은 해석으로 표시한다.
+   */
+  const requirements: Requirement[] = [
+    ...statedRequirements,
+    ...inferRequirementsFromDuties(responsibilityItems, statedRequirements),
   ];
 
   const idealCandidate = buildIdealCandidate({

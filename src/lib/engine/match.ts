@@ -32,6 +32,7 @@ import type {
   RequirementKind,
   ResponsibilityLevel,
   StoryCard,
+  StoryLift,
   StrategyReport,
 } from "../types";
 import {
@@ -48,6 +49,7 @@ import {
   normalizeDimensions,
   READING_NOTE,
 } from "../scoring";
+import { buildCandidacyFuture, buildCandidacyNow } from "./candidacy";
 
 /* ──────────────────────────────────────────────── 0. 결정적 id / 작은 도구 */
 
@@ -1060,6 +1062,18 @@ function buildOneDimension(
     },
   ];
 
+  /*
+   * 스토리텔링에서 값이 왜 움직였는지(혹은 왜 안 움직였는지)를 남긴다.
+   * "표현의 개선"과 "경험 자체의 개선"은 다르고, 값이 그대로인 것이
+   * 앱이 일을 안 한 것처럼 보이면 안 된다.
+   */
+  const storyLift: StoryLift =
+    afterStory > current
+      ? "lifted"
+      : related.length > 0 || direct.length > 0
+        ? "already-reflected"
+        : "no-related-experience";
+
   const dimension: MatchDimension = {
     id: stableId("dim", posting.id, spec.key),
     label: spec.label,
@@ -1079,6 +1093,7 @@ function buildOneDimension(
     usedExperienceIds,
     confidence,
     targetCaveat,
+    storyLift,
   };
 
   return { dimension, direct, related };
@@ -1222,10 +1237,31 @@ export function buildActions(dimensions: MatchDimension[], posting: JobPosting):
               "진행 기간과 본인 책임 범위, 결과를 기록한다.",
             ];
 
+    /*
+     * 과제는 "부족한 것"이 아니라 "이력서 3에 쓰고 싶은 문장"에서 거꾸로 설계한다.
+     * 목표 문장을 먼저 쓰고, 그 문장을 사실로 만들려면 어떤 경험이 필요한지를 잇는다.
+     * 그래야 강의 목록이 아니라 확보할 경력의 설계도가 된다.
+     */
+    const targetSentence =
+      priority === 1
+        ? `${dim.teamExpectation} 범위에서 맡은 부분과 그 결과를 구체적으로 설명했습니다.`
+        : priority === 2
+          ? `${dim.teamExpectation} 를 직접 수행하고, 같은 조건의 전후 측정으로 결과를 확인했습니다.`
+          : `${dim.teamExpectation} 를 실제 업무에서 책임지고 수행했습니다.`;
+
+    const experienceNeeded =
+      priority === 1
+        ? `새 경험이 아니라 이미 한 일의 범위·판단·결과를 확인할 수 있는 기록이 필요합니다.`
+        : priority === 2
+          ? `${dim.label} 를 요구 범위와 같은 조건에서 직접 수행한 과제 하나와, 전후를 비교할 수 있는 측정 자료가 필요합니다.`
+          : `${dim.label} 를 실제 업무에서 맡는 기간과, 그 기간 동안 본인이 내린 결정의 기록이 필요합니다.`;
+
     cards.push({
       id: stableId("action", dim.id),
       dimensionId: dim.id,
       priority,
+      targetSentence,
+      experienceNeeded,
       gap: `${dim.teamExpectation} — ${dim.remainingGap}`,
       from: dim.afterStory,
       to: dim.target,
@@ -1331,6 +1367,20 @@ export function buildReport(
     .filter(Boolean)
     .join(" ");
 
+  /*
+   * 설득 논리는 점수 계산과 분리한다.
+   * 점수가 바뀌면 논리를 다시 만들면 되고, 논리를 고쳐도 점수는 움직이지 않아야 한다.
+   */
+  const candidacyNow = buildCandidacyNow(
+    dimensions,
+    mustHaveStatus,
+    posting,
+    profile,
+    verdict,
+    stories.length > 0,
+  );
+  const candidacyFuture = buildCandidacyFuture(dimensions, mustHaveStatus, posting, actions);
+
   return {
     id: stableId("report", posting.id, profile.id),
     jobPostingId: posting.id,
@@ -1342,6 +1392,8 @@ export function buildReport(
     actions,
     verdict,
     verdictNote,
+    candidacyNow,
+    candidacyFuture,
     mustHaveStatus,
     readingNote: READING_NOTE,
     visibility: "private", // 분석서는 기본 비공개 (기획서 07)

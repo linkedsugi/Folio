@@ -29,7 +29,7 @@ function req(
   text: string,
   equivalence: Requirement["equivalence"] = "unknown",
 ): Requirement {
-  return { id, kind, label, text, equivalence, sourceQuote: text };
+  return { id, kind, label, text, equivalence, sourceQuote: text, derivation: "stated" };
 }
 
 function makePosting(overrides: Partial<JobPosting> = {}): JobPosting {
