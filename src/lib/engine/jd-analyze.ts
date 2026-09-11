@@ -579,9 +579,44 @@ function detectResponsibilityLevel(body: string): LevelDecision {
 }
 
 /** 업무 문장을 명사구로 다듬어 인재상 한 문장에 넣는다. */
+/**
+ * 낱말 경계에서 자른다.
+ *
+ * 글자 수로 뚝 자르면 "전투·이동·카메…" 처럼 낱말 가운데가 끊긴다.
+ * 인재상은 사용자가 가장 먼저 읽는 한 문장이라 이런 자국이 그대로 눈에 띈다.
+ */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const head = text.slice(0, max);
+  const boundary = Math.max(head.lastIndexOf(" "), head.lastIndexOf("·"), head.lastIndexOf(","));
+  // 경계가 너무 앞이면 오히려 말이 안 되므로 그냥 자른다.
+  const cut = boundary >= max * 0.5 ? head.slice(0, boundary) : head;
+  return `${cut.replace(/[\s·,]+$/, "")}…`;
+}
+
+/**
+ * 업무 한 줄에서 "무엇을 하는 일인지"만 남긴다.
+ *
+ * 공고의 업무 문구는 보통 [도구] + [대상 나열] + [핵심 행위] 로 되어 있다.
+ *   "Unity 와 C# 으로 전투·이동·카메라 등 핵심 게임플레이 기능을 구현합니다"
+ * 앞의 도구와 나열을 걷어내면 "핵심 게임플레이 기능을 구현" 이 남는다.
+ * 한 문장으로 읽히려면 이 핵심만 있어야 한다.
+ */
 function toTaskNoun(task: string): string {
   let value = task.split(/[.\n]/)[0].trim();
   value = value.replace(/\s*[(（][^)）]*[)）]\s*/g, " ");
+
+  // 수단을 나타내는 앞머리를 걷어낸다. "…으로", "…를 통해" 는 일 자체가 아니다.
+  const means = /^.{2,24}?(?:으로|로|를\s*통해|을\s*통해)\s+(?=\S)/;
+  if (means.test(value) && value.replace(means, "").length >= 8) {
+    value = value.replace(means, "");
+  }
+  // "A·B·C 등" 같은 나열은 예시일 뿐이다. 뒤에 오는 핵심을 남긴다.
+  const enumeration = /^.{2,28}?\s*등\s+(?=\S)/;
+  if (enumeration.test(value) && value.replace(enumeration, "").length >= 8) {
+    value = value.replace(enumeration, "");
+  }
+
   value = value.replace(/\s*(?:등|및\s*기타)\s*$/, "");
   value = value.replace(
     /(했습니다|합니다|집니다|됩니다|입니다|해요|한다|된다|하기|하며|하고|함|할\s*수\s*있는|하는\s*일)\s*$/,
@@ -589,7 +624,7 @@ function toTaskNoun(task: string): string {
   );
   value = value.replace(/\s*(?:을|를|이|가|은|는)\s*$/, "");
   value = value.replace(/[,·:;\-–—]+$/, "").trim();
-  return shorten(value || task.trim(), 22);
+  return cutAtWord(value || task.trim(), 26);
 }
 
 /** 업무에서 팀이 기대하는 결과를 말로 풀어 준다. 근거 없는 수치는 만들지 않는다. */

@@ -10,7 +10,7 @@ export { MatchTable, type MatchTableProps } from "./MatchTable";
 export { StageRail, type StageRailProps } from "./StageRail";
 
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from "./Button";
-export { Badge, type BadgeProps } from "./Badge";
+export { Badge, type BadgeProps, type BadgeSize } from "./Badge";
 export { Callout, type CalloutProps } from "./Callout";
 export { Disclosure, type DisclosureProps } from "./Disclosure";
 export {

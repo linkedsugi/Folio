@@ -479,7 +479,20 @@ export function assignWeights(kinds: (RequirementKind | "general")[]): number[] 
 /* ──────────────────────────────────────────────── 5. 요구 조건 해석 */
 
 /** 연수 요구에서 빼야 하는 일반어 — 도메인 한정어만 남기기 위한 목록. */
-const TENURE_GENERIC = new Set(["개발", "년", "개월", "년차", "이상", "상용", "실무", "직무", "기간"]);
+/**
+ * 연수 조건에서 "영역"을 뜻하지 않는 낱말.
+ *
+ * "프로덕트 매니저 경력 3년 이상 또는 동등한 제품 과제 책임 경험" 같은 문장에서
+ * 동등·과제·책임 을 영역으로 잡으면 지원자의 거의 모든 경험이 그 영역에 들어가 버린다.
+ * 그러면 연수 판정이 무의미해진다. 직무를 가르는 낱말만 남긴다.
+ */
+const TENURE_GENERIC = new Set([
+  "개발", "년", "개월", "년차", "이상", "상용", "실무", "직무", "기간",
+  // 어느 직무에나 붙는 추상 명사
+  "경력", "경험", "동등", "동등한", "과제", "책임", "업무", "담당", "수행", "관련",
+  "이해", "역량", "능력", "수준", "다양", "다수", "각종", "전반", "기반", "활용",
+  "이력", "포지션", "역할", "조직", "회사", "기업", "부서", "팀원", "고객",
+]);
 
 interface TenureSpec {
   requiredMonths: number;
@@ -533,6 +546,14 @@ const ROLE_GENERIC = new Set([
   "담당자",
   "팀장",
 ]);
+
+/*
+ * 한때 "지원자의 경험 대부분에 걸리는 한정어는 버린다"는 규칙을 두었다가 뺐다.
+ * 한 분야만 파 온 지원자(예: 영업 경력 12년)에게는 그 분야 낱말이 당연히 모든 경험에 걸린다.
+ * 그 사람의 도메인을 오히려 지워 버려서, 딱 맞는 지원자를 "근거 없음"으로 만들었다.
+ * 한정어가 너무 넓어지는 문제는 빈도가 아니라 TENURE_GENERIC 으로 막는다 —
+ * 추상 명사는 어느 직무에도 붙지만, 분야 낱말은 그 사람의 전문성 그 자체이기 때문이다.
+ */
 
 export function domainAnchors(posting: JobPosting): string[] {
   const fromTenure: string[] = [];
@@ -640,10 +661,27 @@ function experienceTokens(
   return tokens;
 }
 
+/**
+ * 한 토큰 집합이 도메인 한정어를 담고 있는가.
+ *
+ * 정확히 같은 토큰만 보면 한국어 합성어를 놓친다.
+ * "게임" 을 찾는데 이력에는 "게임플레이", "게임잼" 으로 적혀 있는 식이다.
+ * 공백으로 끊는 토크나이저로는 둘이 다른 낱말이 되므로, 한글 한정어는 포함도 인정한다.
+ * 영문은 포함을 인정하지 않는다 — "AI" 가 "training" 에 걸리는 식의 오탐이 생긴다.
+ */
+function hasAnchor(tokens: Set<string>, anchor: string): boolean {
+  if (tokens.has(anchor)) return true;
+  if (anchor.length < 2 || !HANGUL_ONLY.test(anchor)) return false;
+  for (const t of tokens) {
+    if (t.length > anchor.length && t.includes(anchor)) return true;
+  }
+  return false;
+}
+
 function isInDomain(exp: ExperienceItem, anchors: string[]): boolean {
   if (anchors.length === 0) return true; // 도메인을 특정할 수 없으면 제한하지 않는다
   const tokens = experienceTokens(exp, "all", false);
-  return anchors.some((a) => tokens.has(a));
+  return anchors.some((a) => hasAnchor(tokens, a));
 }
 
 /** 요구 키워드와 경험을 대조한다. 직접/관련 판정은 여기서 한 번만 한다. */
@@ -706,16 +744,50 @@ function bestResponsibility(matches: ExperienceMatch[]): ResponsibilityLevel {
  *   75  독립 수행 + 성과와 보여줄 결과물이 함께 있음
  *   100 과제 리드·조직 책임 수준에서 성과까지 확인됨
  */
+/** 가장 가까운 허용 단계로 내린다. 올리지 않는다 — 근거보다 후하게 주지 않기 위해서다. */
+function snapDown(value: number, levels: readonly number[]): MatchScore {
+  const sorted = [...levels].sort((a, b) => a - b);
+  let out = sorted[0];
+  for (const l of sorted) if (l <= value) out = l;
+  return out;
+}
+
+/**
+ * 직접 수행한 근거가 설명하는 수준.
+ *
+ * 책임 수준만 보면 안 된다. "과제 리드" 한 줄이 걸렸다는 이유로 100% 를 주면,
+ * 요구 조건의 일부만 스치는 경험도 만점이 된다. (실제로 그렇게 나온 샘플을 보고 고친 규칙이다.)
+ *
+ * 두 가지를 함께 본다:
+ *   책임 수준  — 어디까지 맡았나 (상한을 정한다)
+ *   근거의 두께 — 요구 내용을 얼마나 덮고, 사실로 뒷받침되나 (상한에서 얼마나 내릴지 정한다)
+ *
+ * 성과나 결과물이 전혀 없으면 한 단계 더 내린다.
+ * "했다"는 말만으로는 모집팀이 확인할 수 없기 때문이다.
+ */
 function directLevel(matches: ExperienceMatch[]): MatchScore {
   if (matches.length === 0) return 0;
+
   const best = bestResponsibility(matches);
+  const coverage = Math.max(...matches.map((m) => m.ratio));
+  const facts = Math.max(...matches.map((m) => m.matchedFacts.length));
   const hasOutcome = matches.some((m) => m.exp.outcomes.length > 0);
   const hasArtifact = matches.some((m) => m.exp.artifacts.length > 0);
 
-  if (best === "own-org") return 100;
-  if (best === "lead") return hasOutcome ? 100 : 75;
-  if (best === "independent") return hasOutcome && hasArtifact ? 75 : 50;
-  return 25;
+  // 책임 수준이 정하는 상한
+  const ceiling =
+    best === "own-org" ? 100 : best === "lead" ? 100 : best === "independent" ? 75 : 50;
+
+  // 근거의 두께가 정하는 비율
+  let thickness: number;
+  if (coverage >= 0.5 && facts >= 2) thickness = 1;
+  else if (coverage >= 0.3 || facts >= 2) thickness = 0.75;
+  else thickness = 0.5;
+
+  // 확인할 수 있는 결과가 하나도 없으면 더 내린다.
+  if (!hasOutcome && !hasArtifact) thickness *= 0.75;
+
+  return snapDown(ceiling * thickness, QUALITATIVE_LEVELS);
 }
 
 /** 관련 경험이 "설명할 수 있는 근거"인지. 독립 수행 + 성과/결과물이면 한 단계를 끌어올릴 수 있다. */
@@ -920,7 +992,7 @@ function buildOneDimension(
       if (!PROFESSIONAL_KINDS.includes(e.kind)) return false;
       if (domain.length === 0) return true;
       const tokens = experienceTokens(e, "all");
-      return domain.some((d) => tokens.has(d));
+      return domain.some((d) => hasAnchor(tokens, d));
     });
     const domainMonths = countMonths(inDomainExps);
     const allMonths = countMonths(profile.experiences);

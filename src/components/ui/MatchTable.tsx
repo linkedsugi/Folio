@@ -18,7 +18,8 @@ import type { KeyboardEvent } from "react";
 import clsx from "clsx";
 import { STORY_LIFT_LABEL, type MatchDimension } from "@/lib/types";
 import type { MatchStage } from "@/lib/scoring";
-import { STAGE_TONE } from "./tone";
+import { Badge } from "./Badge";
+import { STAGE_TONE, type Tone } from "./tone";
 
 export interface MatchTableProps {
   dimensions: MatchDimension[];
@@ -28,9 +29,10 @@ export interface MatchTableProps {
   emphasize?: MatchStage;
 }
 
-const KIND_BADGE: Record<MatchDimension["kind"], { label: string; className: string } | null> = {
-  must: { label: "필수", className: "bg-danger-soft text-danger" },
-  preferred: { label: "우대", className: "bg-brand-soft text-brand" },
+/** 필수·우대는 총점과 다른 정보이므로 숫자가 아니라 라벨 옆의 꼬리표로만 보여준다. */
+const KIND_BADGE: Record<MatchDimension["kind"], { label: string; tone: Tone } | null> = {
+  must: { label: "필수", tone: "danger" },
+  preferred: { label: "우대", tone: "brand" },
   general: null,
 };
 
@@ -125,22 +127,18 @@ export function MatchTable({ dimensions, onSelect, selectedId, emphasize }: Matc
                     <span className="flex flex-wrap items-center gap-1">
                       <span className="text-[13px] leading-snug font-bold text-ink">{d.label}</span>
                       {kind ? (
-                        <span
-                          className={clsx(
-                            "shrink-0 rounded-sm px-1 py-px text-[10px] font-semibold",
-                            kind.className,
-                          )}
-                        >
+                        <Badge tone={kind.tone} size="xs">
                           {kind.label}
-                        </span>
+                        </Badge>
                       ) : null}
                       {d.confidence === "needs-confirmation" ? (
-                        <span
+                        <Badge
+                          tone="warn"
+                          size="xs"
                           title={d.remainingGap || "근거 확인이 필요한 항목입니다."}
-                          className="shrink-0 rounded-sm bg-warn-soft px-1 py-px text-[10px] font-semibold text-warn"
                         >
                           확인 필요
-                        </span>
+                        </Badge>
                       ) : null}
                     </span>
                     <span className="tabular mt-0.5 block text-[11px] text-ink-faint">

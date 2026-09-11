@@ -6,20 +6,30 @@
 import clsx from "clsx";
 import { TONE_SOFT, type Tone } from "./tone";
 
+export type BadgeSize = "xs" | "sm";
+
 export interface BadgeProps {
   tone?: Tone;
+  /** xs 는 표 안처럼 촘촘한 자리에 쓴다 */
+  size?: BadgeSize;
   children: React.ReactNode;
   /** 마우스를 올렸을 때 보여줄 설명 */
   title?: string;
   className?: string;
 }
 
-export function Badge({ tone = "neutral", children, title, className }: BadgeProps) {
+const SIZE: Record<BadgeSize, string> = {
+  xs: "px-1 py-px text-[10px]",
+  sm: "px-1.5 py-px text-[11px]",
+};
+
+export function Badge({ tone = "neutral", size = "sm", children, title, className }: BadgeProps) {
   return (
     <span
       title={title}
       className={clsx(
-        "inline-flex shrink-0 items-center rounded-sm px-1.5 py-px text-[11px] leading-snug font-semibold",
+        "inline-flex shrink-0 items-center rounded-sm leading-snug font-semibold",
+        SIZE[size],
         TONE_SOFT[tone],
         className,
       )}
