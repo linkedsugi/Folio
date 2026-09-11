@@ -115,6 +115,38 @@ npm run lint
 
 ---
 
+## 배포
+
+GitHub Actions 가 타입 검사와 테스트를 통과한 뒤에만 GitHub Pages 로 올립니다.
+깨진 배포본이 올라가지 않게 하기 위한 것입니다.
+
+**최초 1회만 사람이 해야 하는 설정이 있습니다.**
+저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꾸세요.
+워크플로 토큰에는 Pages 를 켤 권한이 없어 자동화할 수 없습니다.
+켜기 전까지는 `build` 는 성공하고 `deploy` 만 실패합니다.
+
+켜고 나면 배포 주소는 `https://<사용자>.github.io/<저장소>/` 입니다.
+
+Google 로그인을 함께 쓰려면 두 가지가 더 필요합니다.
+
+1. Google Cloud Console 에서 **웹 애플리케이션** 용 OAuth 클라이언트 ID 를 만들고,
+   승인된 JavaScript 원본에 배포 주소(`https://<사용자>.github.io`)를 넣습니다.
+2. 저장소 **Settings → Secrets and variables → Actions → Variables** 에
+   `NEXT_PUBLIC_GOOGLE_CLIENT_ID` 를 추가하고, 워크플로의 정적 빌드 단계 `env` 에
+   `NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}` 를 더합니다.
+
+설정하지 않아도 앱은 그대로 동작하고, 로그인 자리에는 "설정되어 있지 않습니다" 안내가 나옵니다.
+
+### 서버가 있는 곳에 올릴 때
+
+`npm run build && npm start` 로 Node 에서 돌리면 두 가지가 더 살아납니다.
+
+- 공고 URL 을 서버가 대신 열어 옵니다 (정적 배포에서는 붙여넣기로 안내).
+- 회원 정보를 서버에 보관하고, 서버가 토큰 서명을 검증해 관리자 권한을 강제합니다
+  (`ROLEFIT_DATA_DIR` 설정 시 재시작해도 유지).
+
+---
+
 ## 구조
 
 ```
