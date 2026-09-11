@@ -183,9 +183,45 @@ describe("callJson — 실패는 값으로 돌아온다", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("401 은 서버 설명 대신 'no-key' 로 뭉뚱그린다 — 응답 본문을 밖으로 내보내지 않기 위해", async () => {
-    stub({ error: { message: `invalid key ${KEY}` } }, 401);
-    expect(await call()).toEqual({ ok: false, reason: "no-key" });
+  it("401 은 'bad-key' — 여기 닿았다는 건 키가 있었다는 뜻이다", async () => {
+    stub({ error: { message: `invalid x-api-key ${KEY}` } }, 401);
+    const res = await call();
+    expect(res).toEqual({ ok: false, reason: "bad-key" });
+
+    // 이유는 바뀌어도 응답 본문은 그대로 밖에 나가지 않는다.
+    const serialized = JSON.stringify(res) + LLM_FAILURE_MESSAGE["bad-key"];
+    expect(serialized).not.toContain(KEY);
+    expect(serialized).not.toContain("invalid x-api-key");
+  });
+
+  it("403 도 'bad-key'", async () => {
+    stub({ error: { message: "permission denied" } }, 403);
+    expect(await call()).toEqual({ ok: false, reason: "bad-key" });
+  });
+
+  it("400 은 'bad-request' — 서버에 닿았는데 요청이 거절된 것이다", async () => {
+    stub({ error: { message: "temperature: unexpected field" } }, 400);
+    expect(await call()).toEqual({ ok: false, reason: "bad-request" });
+  });
+
+  it("404 도 'bad-request'", async () => {
+    stub({ error: { message: "not found" } }, 404);
+    expect(await call()).toEqual({ ok: false, reason: "bad-request" });
+  });
+
+  it("413(본문이 너무 큼)도 'bad-request'", async () => {
+    stub({ error: { message: "request too large" } }, 413);
+    expect(await call()).toEqual({ ok: false, reason: "bad-request" });
+  });
+
+  it("500 은 'network' — 서버 쪽이 무너진 것은 다시 걸어 볼 만하다", async () => {
+    stub({ error: { message: "internal server error" } }, 500);
+    expect(await call()).toEqual({ ok: false, reason: "network" });
+  });
+
+  it("'bad-request' 문구는 네트워크가 아니라 설정을 보게 만든다", () => {
+    expect(LLM_FAILURE_MESSAGE["bad-request"]).not.toContain("닿지 못해");
+    expect(LLM_FAILURE_MESSAGE["bad-key"]).not.toContain("API 키가 없어");
   });
 });
 
@@ -207,13 +243,18 @@ describe("키는 밖으로 나가지 않는다", () => {
   it("사용자에게 보일 문구에도 키가 섞일 자리가 없다", () => {
     const failures: LlmFailure[] = [
       "no-key",
+      "bad-key",
       "bad-model",
       "rate-limited",
       "timeout",
       "bad-response",
+      "bad-request",
       "network",
       "refused",
     ];
+    // 실패 이유가 새로 생겼는데 이 목록만 그대로면, 새 문구는 아무도 확인하지 않고 화면에 나간다.
+    expect(new Set(failures)).toEqual(new Set(Object.keys(LLM_FAILURE_MESSAGE)));
+
     for (const failure of failures) {
       const message = LLM_FAILURE_MESSAGE[failure];
       expect(message.length).toBeGreaterThan(0);

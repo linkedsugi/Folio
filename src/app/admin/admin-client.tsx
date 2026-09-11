@@ -1,8 +1,10 @@
 /**
- * 회원 관리.
+ * 관리자 화면 — 두 구역.
  *
- * 관리자가 하는 일은 네 가지다: 누가 쓰는지 보기 / 권한 올리고 내리기 /
- * 이용 정지와 해제 / 운영 메모 남기기.
+ *   1. 정밀 분석 설정 — 이 앱에서 지원자 자료가 기기 밖으로 나가는지 정하는 스위치
+ *   2. 회원 관리 — 누가 쓰는지 보기 / 권한 올리고 내리기 / 이용 정지와 해제 / 운영 메모
+ *
+ * 설정을 목록보다 위에 두는 이유는 본문 주석에 적어 두었다.
  *
  * 여기서 보이는 것은 계정 정보(이름·이메일·로그인 기록)뿐이다.
  * 회원이 입력한 공고·이력·분석서는 그 사람의 기기에만 있고 관리자도 볼 수 없다.
@@ -23,6 +25,7 @@ import {
 import { canChangeRole, useAuthHydrated, useAuthStore, useSession } from "@/store/auth-store";
 import { AppShell } from "@/components/AppShell";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { LlmSettingsPanel } from "@/components/admin/LlmSettingsPanel";
 
 export function AdminClient() {
   const hydrated = useAuthHydrated();
@@ -69,9 +72,9 @@ export function AdminClient() {
     return (
       <AppShell app={null} stage="start">
         <div className="mx-auto max-w-md rounded-sm border border-rule bg-canvas px-5 py-6">
-          <h1 className="text-lg font-bold text-ink">회원 관리</h1>
+          <h1 className="text-lg font-bold text-ink">관리자 화면</h1>
           <p className="mt-1 mb-4 text-[13px] leading-relaxed text-ink-muted">
-            관리자만 볼 수 있는 화면입니다. Google 계정으로 로그인해 주세요.
+            정밀 분석 설정과 회원 관리는 관리자만 볼 수 있습니다. Google 계정으로 로그인해 주세요.
           </p>
           <GoogleSignInButton />
           <Link href="/" className="mt-3 inline-block text-[12px] text-brand hover:underline">
@@ -101,108 +104,126 @@ export function AdminClient() {
 
   return (
     <AppShell app={null} stage="start">
-      <div className="space-y-5">
+      <div className="space-y-8">
         <header>
           <p className="text-[11px] font-semibold tracking-wide text-brand">ADMIN</p>
-          <h1 className="mt-0.5 text-xl font-bold text-ink sm:text-2xl">회원 관리</h1>
+          <h1 className="mt-0.5 text-xl font-bold text-ink sm:text-2xl">관리자 화면</h1>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
-            계정 정보와 이용 현황만 보입니다. 회원이 입력한 공고·이력·분석서는 그 사람의 기기에만
-            있고 여기서 볼 수 없습니다.
+            정밀 분석 설정과 회원 이용 현황을 관리합니다. 회원이 입력한 공고·이력·분석서는 그
+            사람의 기기에만 있고 여기서 볼 수 없습니다.
           </p>
         </header>
 
-        {/* 저장소가 이 기기뿐이라면 그 사실을 숨기지 않는다. */}
-        {storeKind === "local" ? (
-          <div className="rounded-sm border border-warn-soft bg-warn-soft px-4 py-3">
-            <p className="text-[13px] font-bold text-warn">이 목록은 이 브라우저에만 있습니다</p>
-            <p className="mt-0.5 text-[12px] leading-snug text-warn">
-              지금 배포에는 회원 정보를 보관할 서버가 없습니다. 여기 보이는 것은 이 브라우저에서
-              로그인한 계정뿐이고, 다른 기기에서 가입한 사람은 보이지 않습니다. 전체 가입자를
-              관리하려면 서버가 있는 환경에 배포하고 <code className="font-mono">ROLEFIT_DATA_DIR</code>{" "}
-              를 설정해야 합니다.
+        {/*
+         * 설정이 회원 목록보다 위에 있는 이유.
+         * 목록은 매일 들여다보는 화면이지만, 정밀 분석 스위치는 지원자 자료가 기기를
+         * 떠나는지 정하는 단 하나의 설정이다. 관리 화면을 연 사람이 그 상태를 먼저 읽어야
+         * 켜져 있는 줄 모르고 운영하는 일이 없다.
+         */}
+        <LlmSettingsPanel />
+
+        <section className="space-y-5">
+          <header className="border-b border-rule pb-2">
+            <p className="text-[11px] font-semibold tracking-wide text-brand">계정</p>
+            <h2 className="text-base font-bold text-ink sm:text-lg">회원 관리</h2>
+            <p className="mt-0.5 text-[13px] leading-relaxed text-ink-muted">
+              계정 정보와 이용 현황만 보입니다. 권한·이용 정지·운영 메모를 여기서 바꿉니다.
             </p>
+          </header>
+
+          {/* 저장소가 이 기기뿐이라면 그 사실을 숨기지 않는다. */}
+          {storeKind === "local" ? (
+            <div className="rounded-sm border border-warn-soft bg-warn-soft px-4 py-3">
+              <p className="text-[13px] font-bold text-warn">이 목록은 이 브라우저에만 있습니다</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-warn">
+                지금 배포에는 회원 정보를 보관할 서버가 없습니다. 여기 보이는 것은 이 브라우저에서
+                로그인한 계정뿐이고, 다른 기기에서 가입한 사람은 보이지 않습니다. 전체 가입자를
+                관리하려면 서버가 있는 환경에 배포하고 <code className="font-mono">ROLEFIT_DATA_DIR</code>{" "}
+                를 설정해야 합니다.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-3 gap-2">
+            <Stat label="전체 회원" value={counts.total} />
+            <Stat label="관리자" value={counts.admins} />
+            <Stat label="정지" value={counts.suspended} tone={counts.suspended > 0 ? "warn" : undefined} />
           </div>
-        ) : null}
 
-        <div className="grid grid-cols-3 gap-2">
-          <Stat label="전체 회원" value={counts.total} />
-          <Stat label="관리자" value={counts.admins} />
-          <Stat label="정지" value={counts.suspended} tone={counts.suspended > 0 ? "warn" : undefined} />
-        </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="member-search" className="sr-only">
+              회원 검색
+            </label>
+            <input
+              id="member-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="이름 또는 이메일로 찾기"
+              className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[13px]"
+            />
+            <button
+              type="button"
+              onClick={() => void refreshMembers()}
+              className="rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink"
+            >
+              {loadingMembers ? "새로고침 중…" : "새로고침"}
+            </button>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="member-search" className="sr-only">
-            회원 검색
-          </label>
-          <input
-            id="member-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="이름 또는 이메일로 찾기"
-            className="min-w-0 flex-1 rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[13px]"
-          />
-          <button
-            type="button"
-            onClick={() => void refreshMembers()}
-            className="rounded-sm border border-rule-strong bg-canvas px-2.5 py-1.5 text-[12px] font-medium text-ink hover:border-ink"
-          >
-            {loadingMembers ? "새로고침 중…" : "새로고침"}
-          </button>
-        </div>
+          {filtered.length === 0 ? (
+            <p className="rounded-sm border border-dashed border-rule-strong px-4 py-8 text-center text-[13px] text-ink-muted">
+              {members.length === 0
+                ? "아직 로그인한 회원이 없습니다."
+                : "검색 결과가 없습니다."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-sm border border-rule">
+              <table className="w-full min-w-[46rem] border-collapse text-left">
+                <thead>
+                  <tr className="bg-ink text-white">
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">회원</th>
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">권한</th>
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">상태</th>
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">가입</th>
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">최근 로그인</th>
+                    <th scope="col" className="px-3 py-2 text-center text-[11px] font-semibold">방문</th>
+                    <th scope="col" className="px-3 py-2 text-[11px] font-semibold">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rule">
+                  {filtered.map((m) => (
+                    <MemberRow
+                      key={m.id}
+                      member={m}
+                      isSelf={m.id === session.member.id}
+                      editingNote={editingNote === m.id}
+                      noteDraft={noteDraft}
+                      onNoteDraft={setNoteDraft}
+                      onEditNote={(open) => {
+                        setEditingNote(open ? m.id : null);
+                        setNoteDraft(open ? (m.note ?? "") : "");
+                      }}
+                      onSaveNote={async () => {
+                        await setNote(m.id, noteDraft);
+                        setEditingNote(null);
+                      }}
+                      onRole={(role) => void setRole(m.id, role)}
+                      onToggleStatus={() =>
+                        void setStatus(m.id, m.status === "active" ? "suspended" : "active")
+                      }
+                      onRemove={() => void removeMember(m.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {filtered.length === 0 ? (
-          <p className="rounded-sm border border-dashed border-rule-strong px-4 py-8 text-center text-[13px] text-ink-muted">
-            {members.length === 0
-              ? "아직 로그인한 회원이 없습니다."
-              : "검색 결과가 없습니다."}
+          <p className="text-[11px] leading-relaxed text-ink-faint">
+            소유자 계정은 권한을 내리거나 정지·삭제할 수 없습니다. 관리자 전원이 서로 권한을 내려
+            아무도 들어갈 수 없게 되는 상황을 막기 위한 것입니다.
           </p>
-        ) : (
-          <div className="overflow-x-auto rounded-sm border border-rule">
-            <table className="w-full min-w-[46rem] border-collapse text-left">
-              <thead>
-                <tr className="bg-ink text-white">
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">회원</th>
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">권한</th>
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">상태</th>
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">가입</th>
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">최근 로그인</th>
-                  <th scope="col" className="px-3 py-2 text-center text-[11px] font-semibold">방문</th>
-                  <th scope="col" className="px-3 py-2 text-[11px] font-semibold">관리</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-rule">
-                {filtered.map((m) => (
-                  <MemberRow
-                    key={m.id}
-                    member={m}
-                    isSelf={m.id === session.member.id}
-                    editingNote={editingNote === m.id}
-                    noteDraft={noteDraft}
-                    onNoteDraft={setNoteDraft}
-                    onEditNote={(open) => {
-                      setEditingNote(open ? m.id : null);
-                      setNoteDraft(open ? (m.note ?? "") : "");
-                    }}
-                    onSaveNote={async () => {
-                      await setNote(m.id, noteDraft);
-                      setEditingNote(null);
-                    }}
-                    onRole={(role) => void setRole(m.id, role)}
-                    onToggleStatus={() =>
-                      void setStatus(m.id, m.status === "active" ? "suspended" : "active")
-                    }
-                    onRemove={() => void removeMember(m.id)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <p className="text-[11px] leading-relaxed text-ink-faint">
-          소유자 계정은 권한을 내리거나 정지·삭제할 수 없습니다. 관리자 전원이 서로 권한을 내려
-          아무도 들어갈 수 없게 되는 상황을 막기 위한 것입니다.
-        </p>
+        </section>
       </div>
     </AppShell>
   );

@@ -17,6 +17,7 @@ import { Badge, Callout } from "@/components/ui";
 import { useIsAdmin } from "@/store/auth-store";
 import {
   useLlmSettings,
+  useSettingsError,
   useSettingsHydrated,
   useSettingsLoading,
   useSettingsStore,
@@ -46,6 +47,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
   const settings = useLlmSettings();
   const loading = useSettingsLoading();
   const storeKind = useSettingsStoreKind();
+  const error = useSettingsError();
   const load = useSettingsStore((s) => s.load);
   const update = useSettingsStore((s) => s.update);
 
@@ -60,6 +62,13 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
   // 서버가 없는 배포에는 API 키도 없다. 켜도 규칙 기반으로 동작한다.
   const serverless = storeKind === "local";
   const locked = !admin || loading;
+  /*
+   * 아직 저장소에 물어보지 않았거나 물어보는 중이다.
+   * 이때 켜짐/꺼짐·키 유무로 상태를 단정하면, 브라우저에 남아 있던 참고값 때문에
+   * "켜져 있지만 키가 없습니다" 같은 경고가 먼저 떴다가 곧 바뀐다.
+   * 없는 고장을 알리는 셈이므로, 확인이 끝날 때까지는 아무 판정도 하지 않는다.
+   */
+  const checking = storeKind === "unknown" || loading;
 
   return (
     <section
@@ -87,6 +96,21 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
           <p className="py-4 text-center text-[12px] text-ink-muted">설정을 불러오는 중…</p>
         ) : (
           <>
+            {/* 0. 바꾸지 못했다면 그 이유를 먼저 말한다 — 체크박스만 되돌아가면 침묵이다. */}
+            {error ? (
+              <div role="alert">
+                <Callout tone="danger" title="설정을 바꾸지 못했습니다">
+                  <p>{error.reason}</p>
+                  {/* 되돌아간 값이 무엇인지도 함께 말한다 — 화면에 남은 값을 오해하지 않도록. */}
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                    {error.status > 0
+                      ? `서버 응답 ${error.status} · 아래 값은 지금 서버에 저장된 설정입니다.`
+                      : "서버의 설정을 확인하지 못해 아래 값은 꺼짐으로 두었습니다."}
+                  </p>
+                </Callout>
+              </div>
+            ) : null}
+
             {/* 1. 켜기/끄기 */}
             <div className="rounded-sm border border-rule bg-surface px-3 py-2.5">
               <label htmlFor={toggleId} className="flex cursor-pointer items-start gap-2.5">
@@ -119,6 +143,7 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
 
             {/* 3. 지금 실제로 어떤 상태인가 */}
             <StatusNotice
+              checking={checking}
               enabled={settings.enabled}
               keyConfigured={settings.keyConfigured}
               serverless={serverless}
@@ -215,14 +240,26 @@ export function LlmSettingsPanel({ className }: LlmSettingsPanelProps) {
  * 관리자는 원인을 찾을 방법이 없다.
  */
 function StatusNotice({
+  checking,
   enabled,
   keyConfigured,
   serverless,
 }: {
+  checking: boolean;
   enabled: boolean;
   keyConfigured: boolean;
   serverless: boolean;
 }) {
+  // 모르는 동안에는 모른다고 말한다. 잠깐 잘못된 경고를 띄웠다 바꾸면,
+  // 다음에 진짜 경고가 떴을 때 관리자는 그것도 곧 사라질 것으로 읽는다.
+  if (checking) {
+    return (
+      <Callout tone="neutral" title="설정을 확인하는 중입니다">
+        저장된 설정을 읽고 있습니다. 확인이 끝나면 지금 상태를 알려 드립니다.
+      </Callout>
+    );
+  }
+
   if (serverless) {
     return (
       <Callout tone="warn" title="이 배포에서는 정밀 분석을 쓸 수 없습니다">

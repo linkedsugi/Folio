@@ -6,11 +6,15 @@
  * 두 가지 사실을 화면에서 숨기지 않는다:
  *  - 페이지를 읽을 수 없으면 붙여넣기나 파일 입력으로 이어간다.
  *  - URL 만 입력해도 항상 내용을 가져오는 것은 아니다 ("링크만 저장됨").
+ *
+ * 정밀 분석 동의 칸도 여기에 둔다. 자료가 기기를 떠나는지는 분석을 시작하기 직전,
+ * 무엇을 넣었는지 눈앞에 있을 때 정해야 판단할 근거가 있기 때문이다.
  */
 "use client";
 
 import { useState } from "react";
 import { extractTextFromFile, fetchJobPosting } from "@/lib/extract-client";
+import { PrecisionConsent } from "@/components/analysis/PrecisionConsent";
 
 export interface IntakeValue {
   jdText: string;
@@ -20,16 +24,36 @@ export interface IntakeValue {
   links: { label: string; url: string; status: "fetched" | "link-only" | "failed" }[];
 }
 
+/**
+ * 정밀 분석 동의에 필요한 값.
+ *
+ * 이 화면은 동의를 저장하지도 기억하지도 않는다. 부르는 쪽이 분석 한 번마다 새로 세워
+ * 넘기고, 분석이 끝나면 버린다 — 한 번 누른 동의가 다음 지원 건까지 따라가면
+ * 그것은 더 이상 동의가 아니다.
+ */
+export interface IntakeConsent {
+  /** 지금 정밀 분석을 쓸 수 있는가 (관리자가 켰고 서버에 키가 있는가) */
+  available: boolean;
+  /** 쓸 수 없다면 왜인지 — 화면이 그대로 보여 준다 */
+  unavailableReason: string | null;
+  /** 어디로 보내는지 알고 동의해야 하므로 모델 이름을 함께 보여 준다 */
+  modelLabel: string;
+  consented: boolean;
+  onConsentChange: (v: boolean) => void;
+}
+
 export interface IntakeScreenProps {
   value: IntakeValue;
   onChange: (patch: Partial<IntakeValue>) => void;
   onSubmit: () => void;
   busy?: boolean;
+  /** 넘기지 않으면 동의 칸 자체가 없다 — 즉 규칙 기반으로만 분석한다. */
+  consent?: IntakeConsent;
 }
 
 type Notice = { tone: "info" | "warn" | "ok"; text: string } | null;
 
-export function IntakeScreen({ value, onChange, onSubmit, busy }: IntakeScreenProps) {
+export function IntakeScreen({ value, onChange, onSubmit, busy, consent }: IntakeScreenProps) {
   const [jdNotice, setJdNotice] = useState<Notice>(null);
   const [profileNotice, setProfileNotice] = useState<Notice>(null);
   const [candidates, setCandidates] = useState<{ title: string; body: string }[]>([]);
@@ -236,20 +260,33 @@ export function IntakeScreen({ value, onChange, onSubmit, busy }: IntakeScreenPr
         </Panel>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-rule bg-canvas px-4 py-3">
-        <p className="text-[12px] leading-snug text-ink-muted">
-          {ready
-            ? "두 자료가 준비되었습니다. 공고에서 인재상과 요구 조건을, 이력에서 경험을 정리합니다."
-            : "공고 본문과 내 이력을 모두 넣어야 분석을 시작할 수 있습니다."}
-        </p>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!ready || busy}
-          className="shrink-0 rounded-sm bg-ink px-4 py-2 text-[13px] font-bold text-white disabled:bg-rule-strong"
-        >
-          {busy ? "분석 중…" : "분석 시작"}
-        </button>
+      <div className="space-y-3 rounded-sm border border-rule bg-canvas px-4 py-3">
+        {/* 자료가 어디로 가는지는 시작 버튼을 누르기 직전에 읽어야 한다. */}
+        {consent ? (
+          <PrecisionConsent
+            available={consent.available}
+            unavailableReason={consent.unavailableReason}
+            modelLabel={consent.modelLabel}
+            consented={consent.consented}
+            onChange={consent.onConsentChange}
+          />
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 text-[12px] leading-snug text-ink-muted">
+            {ready
+              ? "두 자료가 준비되었습니다. 공고에서 인재상과 요구 조건을, 이력에서 경험을 정리합니다."
+              : "공고 본문과 내 이력을 모두 넣어야 분석을 시작할 수 있습니다."}
+          </p>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!ready || busy}
+            className="shrink-0 rounded-sm bg-ink px-4 py-2 text-[13px] font-bold text-white disabled:bg-rule-strong"
+          >
+            {busy ? "분석 중…" : "분석 시작"}
+          </button>
+        </div>
       </div>
     </div>
   );

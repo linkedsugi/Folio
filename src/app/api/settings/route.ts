@@ -8,6 +8,8 @@
  * 읽기는 로그인한 사람이면 누구나 할 수 있다. 화면이 "왜 규칙 기반으로 갔는지"를
  * 말하려면 켜짐/꺼짐과 키 유무를 알아야 하기 때문이다.
  * 다만 **키 자체는 절대 내려보내지 않는다.** 나가는 것은 keyConfigured: boolean 하나다.
+ * 마지막으로 바꾼 사람(updatedBy)도 관리자에게만 준다. 그건 운영 기록이지
+ * 일반 회원이 앱을 쓰는 데 필요한 값이 아니고, 운영자가 누구인지는 그 자체로 표적이 된다.
  *
  * 보관 위치:
  *   ROLEFIT_DATA_DIR 이 있으면 그 아래 settings.json — 다시 시작해도 남는다.
@@ -77,6 +79,22 @@ function toSettings(stored: StoredSettings | null): LlmSettings {
   return normalizeSettings({ ...(stored ?? {}), keyConfigured: hasApiKey() });
 }
 
+/**
+ * 보는 사람에 따라 내려보낼 것을 고른다.
+ *
+ * updatedBy 는 관리자의 이메일이다. 일반 회원이 알아야 할 이유가 없고,
+ * 운영자가 누구인지는 그 자체로 표적이 되는 정보다.
+ * 일반 회원에게 필요한 것은 "정밀 분석을 쓸 수 있는 상태인가" 뿐이므로 그것만 준다.
+ */
+function forViewer(settings: LlmSettings, isAdmin: boolean): LlmSettings {
+  if (isAdmin) return settings;
+  return {
+    enabled: settings.enabled,
+    modelId: settings.modelId,
+    keyConfigured: settings.keyConfigured,
+  };
+}
+
 /* ───────────────────────────── 인증 — 회원 API 와 같은 방식 */
 
 type Caller = { member: Member | null; email: string; sub: string };
@@ -130,11 +148,12 @@ export async function GET(request: Request) {
   const auth = await authenticate(request);
   if (!auth.ok) return NextResponse.json({ reason: auth.reason }, { status: auth.status });
 
+  const canEdit = isAdminCaller(auth.caller);
   return NextResponse.json({
-    settings: toSettings(await readStored()),
+    settings: forViewer(toSettings(await readStored()), canEdit),
     /** 재시작하면 사라지는 배포인지 화면이 알려 줄 수 있게 */
     persistent: Boolean(filePath),
-    canEdit: isAdminCaller(auth.caller),
+    canEdit,
   });
 }
 

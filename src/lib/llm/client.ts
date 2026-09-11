@@ -41,12 +41,23 @@ export interface LlmCallOptions {
   apiKey: string;
 }
 
+/**
+ * 실패 이유는 닫힌 집합이다. 서버가 준 설명을 그대로 내보내지 않으려면,
+ * 밖으로 나갈 수 있는 값이 여기 적힌 것뿐이어야 한다.
+ *
+ * 'no-key' 와 'bad-key' 를, 'network' 와 'bad-request' 를 굳이 나누는 이유는
+ * 관리자가 엉뚱한 곳을 뒤지지 않게 하기 위해서다. "키가 없다"는 말을 듣고 비어 있는
+ * 환경변수를 찾는 사람과, "닿지 못했다"는 말을 듣고 네트워크를 보는 사람은
+ * 각각 틀린 키와 잘못된 요청 파라미터를 영영 못 찾는다.
+ */
 export type LlmFailure =
   | "no-key"
+  | "bad-key"
   | "bad-model"
   | "rate-limited"
   | "timeout"
   | "bad-response"
+  | "bad-request"
   | "network"
   | "refused";
 
@@ -57,11 +68,18 @@ export type LlmResult<T> =
 /** 화면이 "왜 규칙 기반으로 갔는지" 그대로 보여 줄 수 있도록 실패마다 문구를 둔다. */
 export const LLM_FAILURE_MESSAGE: Record<LlmFailure, string> = {
   "no-key": "서버에 API 키가 없어 정밀 분석을 건너뛰고 기기 안에서 분석했습니다.",
+  // 앞 문장은 "키가 거부되었다"를 그대로 말하고, 뒤 문장은 분석이 멈추지 않았다는
+  // 사실을 말한다. 둘 중 하나라도 빠지면 화면이 상황을 절반만 전하게 된다.
+  "bad-key": "서버에 설정된 API 키가 거부되어 기기 안에서 분석했습니다. 키를 확인해 주세요.",
   "bad-model":
     "설정된 모델을 쓸 수 없어 기기 안에서 분석했습니다. 관리자에게 모델 설정을 확인해 달라고 알려 주세요.",
   "rate-limited": "정밀 분석 요청이 한도에 걸려 기기 안에서 분석했습니다. 잠시 후 다시 시도해 주세요.",
   timeout: "정밀 분석이 시간 안에 끝나지 않아 기기 안에서 분석했습니다.",
   "bad-response": "정밀 분석 결과를 읽을 수 없어 기기 안에서 분석했습니다.",
+  // "닿지 못했다"가 아니라 "닿았는데 거절당했다"는 뜻이다 — 그래야 네트워크가 아니라
+  // 요청 내용(모델·파라미터)을 보게 된다.
+  "bad-request":
+    "정밀 분석 서버가 요청을 받아들이지 않아 기기 안에서 분석했습니다. 관리자에게 모델 설정을 확인해 달라고 알려 주세요.",
   network: "정밀 분석 서버에 닿지 못해 기기 안에서 분석했습니다.",
   refused: "모델이 이 요청에 답하지 않아 기기 안에서 분석했습니다.",
 };
@@ -124,9 +142,14 @@ function collectText(payload: unknown): string | null {
 function statusToFailure(status: number): LlmFailure {
   // 429 한도 초과, 529 과부하 — 둘 다 "지금은 안 되지만 나중엔 된다"는 같은 뜻이다.
   if (status === 429 || status === 529) return "rate-limited";
-  // 401·403 은 키가 없거나 거부된 상태다. 응답 본문을 그대로 밖에 내보내지 않기 위해
-  // 서버가 준 설명 대신 'no-key' 로 뭉뚱그린다.
-  if (status === 401 || status === 403) return "no-key";
+  // 여기까지 왔다는 것은 키가 비어 있지 않았다는 뜻이다(위에서 이미 걸러진다).
+  // 그러므로 401·403 의 실제 원인은 "키가 없다"가 아니라 "키가 거부됐다"다.
+  // 서버가 준 설명은 여전히 버린다 — 본문에 키가 섞여 나갈 자리를 만들지 않기 위해.
+  if (status === 401 || status === 403) return "bad-key";
+  // 나머지 4xx(400·404·413 …)는 서버에 닿긴 닿았고 요청이 거절된 것이다.
+  // 'network' 로 보내면 모델 파라미터가 바뀌어 400 이 오기 시작해도
+  // 운영자는 끊긴 적 없는 네트워크만 들여다보게 된다.
+  if (status >= 400 && status < 500) return "bad-request";
   return "network";
 }
 

@@ -12,9 +12,16 @@
  *
  * 그래서 모델 응답에서 점수는 아예 읽지 않는다. 보내와도 무시한다.
  *
+ * ── 왜 목록을 통째로 바꾸지 않는가 ────────────────────────────
+ * 우려·검토할 이유·지원 조건 같은 목록은 **자리(index)별 문장 교체만** 허용한다.
+ * 모델이 보낸 배열로 원본 배열을 갈아 끼우면, 모델이 두 개 중 하나만 보내거나
+ * 한 항목이 검증에서 탈락하는 것만으로 규칙 엔진이 찾아낸 우려가 조용히 사라진다.
+ * 항목이 사라지는 것은 문장을 다듬는 일이 아니라 구조를 바꾸는 일이다.
+ * 그래서 개수는 항상 원본 그대로이고, 모델이 덜 보내면 남은 자리는 원본이 남는다.
+ *
  * ── 무엇을 버리는가 ───────────────────────────────────────────
- * 입력에 없는 id, 빈 문장, 500자를 넘는 문장, 한계를 빼먹은 우려,
- * 확률로 말하는 문장. 하나라도 걸리면 그 항목만 버리고 규칙 기반 값을 유지한다.
+ * 입력에 없는 id, 빈 문장, 500자를 넘는 문장, 한계를 빼먹은 우려, 근거가 없는 우려,
+ * 확률로 말하는 문장. 하나라도 걸리면 **그 자리만** 규칙 기반 값을 유지한다.
  * 전부 버려도 분석서는 멀쩡하다 — 그게 이 설계의 핵심이다.
  */
 import type {
@@ -114,14 +121,8 @@ function usable(raw: unknown): string | null {
   return text;
 }
 
-function usableList(raw: string[] | undefined): string[] {
-  if (!raw) return [];
-  const out: string[] = [];
-  for (const item of raw) {
-    const text = usable(item);
-    if (text) out.push(text);
-  }
-  return out;
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
 }
 
 /* ─────────────────────────────────────── 응답 검증 (모양) */
@@ -131,18 +132,21 @@ function parseCandidacy(value: unknown): CandidacyPatch | undefined {
   if (!raw) return undefined;
 
   const concernsRaw = Array.isArray(raw.concerns) ? raw.concerns : undefined;
-  const concerns = concernsRaw
-    ?.map((entry): ConcernPatch | null => {
-      const c = asRecord(entry);
-      if (!c) return null;
-      return {
-        concern: asString(c.concern),
-        response: asString(c.response),
-        honestLimit: asString(c.honestLimit),
-        evidenceIds: asStringArray(c.evidenceIds),
-      };
-    })
-    .filter((c): c is ConcernPatch => c !== null);
+  /*
+   * 우려는 자리(index)로 맞춰 넣으므로, 모양이 아닌 항목도 빈 패치로 자리를 지킨다.
+   * 여기서 걸러 내면 뒤의 항목이 앞으로 당겨져 엉뚱한 우려에 다른 답이 붙는다.
+   * 빈 패치는 어차피 적용 단계에서 통과하지 못하고 원본이 남는다.
+   */
+  const concerns = concernsRaw?.map((entry): ConcernPatch => {
+    const c = asRecord(entry);
+    if (!c) return {};
+    return {
+      concern: asString(c.concern),
+      response: asString(c.response),
+      honestLimit: asString(c.honestLimit),
+      evidenceIds: asStringArray(c.evidenceIds),
+    };
+  });
 
   const patch: CandidacyPatch = {
     headline: asString(raw.headline),
@@ -222,16 +226,46 @@ export function validateEnrichPatch(value: unknown): EnrichPatch | null {
 
 /* ─────────────────────────────────────── 응답 적용 (사실 확인) */
 
+/**
+ * 바뀐 자리의 경로.
+ *
+ * 화면이 "정밀 분석이 다듬은 문장"만 짚어 원문과 나란히 보여줄 수 있어야 하므로,
+ * 몇 개가 바뀌었는지가 아니라 **어디가** 바뀌었는지를 돌려준다.
+ * 예: 'dimension:dim-1x9xkif:storyBasis', 'candidacyNow:concerns:1:response'
+ */
 interface Applied<T> {
   value: T;
-  changed: number;
+  changedPaths: string[];
+}
+
+/**
+ * 문장 목록을 자리별로 교체한다. 개수는 원본 그대로다.
+ * 모델이 적게 보내면 남은 자리는 원본, 더 보내면 남는 것은 버린다.
+ */
+function applyTextList(
+  original: string[],
+  patch: string[] | undefined,
+  pathPrefix: string,
+): Applied<string[]> {
+  if (!patch) return { value: original, changedPaths: [] };
+
+  const changedPaths: string[] = [];
+  const value = original.map((current, index) => {
+    const next = usable(patch[index]);
+    // 같은 문장이면 바꾼 것이 아니다. 화면이 "다듬어졌다"고 표시할 이유가 없다.
+    if (!next || next === current) return current;
+    changedPaths.push(`${pathPrefix}:${index}`);
+    return next;
+  });
+
+  return { value, changedPaths };
 }
 
 function applyDimensions(
   dimensions: MatchDimension[],
   patches: DimensionPatch[] | undefined,
 ): Applied<MatchDimension[]> {
-  if (!patches || patches.length === 0) return { value: dimensions, changed: 0 };
+  if (!patches || patches.length === 0) return { value: dimensions, changedPaths: [] };
 
   const byId = new Map<string, DimensionPatch>();
   for (const patch of patches) {
@@ -239,137 +273,183 @@ function applyDimensions(
     if (dimensions.some((d) => d.id === patch.id)) byId.set(patch.id, patch);
   }
 
-  let changed = 0;
+  const changedPaths: string[] = [];
   const value = dimensions.map((dimension) => {
     const patch = byId.get(dimension.id);
     if (!patch) return dimension;
 
-    const currentBasis = usable(patch.currentBasis);
-    const storyBasis = usable(patch.storyBasis);
-    const remainingGap = usable(patch.remainingGap);
-    if (!currentBasis && !storyBasis && !remainingGap) return dimension;
+    /*
+     * 연결할 경험을 하나도 못 찾은 부문에는 현재 근거·연결 경험 설명을 붙이지 않는다.
+     * 근거로 쓸 경험이 없는데 그럴듯한 설명만 붙으면 없는 사실을 주장하게 된다.
+     * 남는 차이(remainingGap)는 "아직 근거가 없다"는 말이라 근거 없이도 쓸 수 있다.
+     */
+    const hasEvidence =
+      Array.isArray(dimension.usedExperienceIds) && dimension.usedExperienceIds.length > 0;
 
-    if (currentBasis) changed += 1;
-    if (storyBasis) changed += 1;
-    if (remainingGap) changed += 1;
+    const currentBasis = hasEvidence ? usable(patch.currentBasis) : null;
+    const storyBasis = hasEvidence ? usable(patch.storyBasis) : null;
+    const remainingGap = usable(patch.remainingGap);
+
+    const next = {
+      currentBasis:
+        currentBasis && currentBasis !== dimension.currentBasis ? currentBasis : null,
+      storyBasis: storyBasis && storyBasis !== dimension.storyBasis ? storyBasis : null,
+      remainingGap:
+        remainingGap && remainingGap !== dimension.remainingGap ? remainingGap : null,
+    };
+    if (!next.currentBasis && !next.storyBasis && !next.remainingGap) return dimension;
+
+    for (const field of ["currentBasis", "storyBasis", "remainingGap"] as const) {
+      if (next[field]) changedPaths.push(`dimension:${dimension.id}:${field}`);
+    }
 
     // 점수·가중치·근거 목록은 규칙 엔진 값을 그대로 둔다. 모델 응답에서 읽지 않는다.
     return {
       ...dimension,
-      currentBasis: currentBasis ?? dimension.currentBasis,
-      storyBasis: storyBasis ?? dimension.storyBasis,
-      remainingGap: remainingGap ?? dimension.remainingGap,
+      currentBasis: next.currentBasis ?? dimension.currentBasis,
+      storyBasis: next.storyBasis ?? dimension.storyBasis,
+      remainingGap: next.remainingGap ?? dimension.remainingGap,
     };
   });
 
-  return { value, changed };
+  return { value, changedPaths };
 }
 
 function applyStories(
   stories: StoryCard[],
   patches: StoryPatch[] | undefined,
 ): Applied<StoryCard[]> {
-  if (!patches || patches.length === 0) return { value: stories, changed: 0 };
+  if (!patches || patches.length === 0) return { value: stories, changedPaths: [] };
 
   const byId = new Map<string, StoryPatch>();
   for (const patch of patches) {
     if (stories.some((s) => s.id === patch.id)) byId.set(patch.id, patch);
   }
 
-  let changed = 0;
+  const changedPaths: string[] = [];
   const value = stories.map((story) => {
     const patch = byId.get(story.id);
     if (!patch) return story;
 
-    const connectionLogic = usable(patch.connectionLogic);
-    const resumeSentence = usable(patch.resumeSentence);
-    const interviewNote = usable(patch.interviewNote);
-    const scopeAndLimit = usable(patch.scopeAndLimit);
-    if (!connectionLogic && !resumeSentence && !interviewNote && !scopeAndLimit) return story;
+    const fields = {
+      connectionLogic: usable(patch.connectionLogic),
+      resumeSentence: usable(patch.resumeSentence),
+      interviewNote: usable(patch.interviewNote),
+      scopeAndLimit: usable(patch.scopeAndLimit),
+    } as const;
 
-    if (connectionLogic) changed += 1;
-    if (resumeSentence) changed += 1;
-    if (interviewNote) changed += 1;
-    if (scopeAndLimit) changed += 1;
+    const next: Partial<Record<keyof typeof fields, string>> = {};
+    for (const field of Object.keys(fields) as (keyof typeof fields)[]) {
+      const text = fields[field];
+      if (text && text !== story[field]) next[field] = text;
+    }
+    const changedFields = Object.keys(next) as (keyof typeof fields)[];
+    if (changedFields.length === 0) return story;
+
+    for (const field of changedFields) changedPaths.push(`story:${story.id}:${field}`);
 
     // from/to 와 채택 여부(adopted)는 사용자와 규칙 엔진의 것이다. 문장만 바꾼다.
-    return {
-      ...story,
-      connectionLogic: connectionLogic ?? story.connectionLogic,
-      resumeSentence: resumeSentence ?? story.resumeSentence,
-      interviewNote: interviewNote ?? story.interviewNote,
-      scopeAndLimit: scopeAndLimit ?? story.scopeAndLimit,
-    };
+    return { ...story, ...next };
   });
 
-  return { value, changed };
+  return { value, changedPaths };
 }
 
+/**
+ * 우려 목록을 자리별로 교체한다. 개수는 원본 그대로다.
+ *
+ * 한 자리라도 검증에 걸리면 그 자리만 규칙 기반 문장이 남는다.
+ * 모델이 보낸 것만 남기면 규칙 엔진이 찾아낸 우려가 사라지는데,
+ * 우려가 사라진 분석서는 다듬어진 분석서가 아니라 다른 분석서다.
+ */
 function applyConcerns(
   original: CandidacyConcern[],
   patches: ConcernPatch[] | undefined,
   knownExperienceIds: Set<string>,
+  pathPrefix: string,
 ): Applied<CandidacyConcern[]> {
-  if (!patches) return { value: original, changed: 0 };
+  if (!patches) return { value: original, changedPaths: [] };
 
-  const kept: CandidacyConcern[] = [];
-  for (const patch of patches) {
+  const changedPaths: string[] = [];
+  const value = original.map((current, index) => {
+    const patch = patches[index];
+    if (!patch) return current;
+
     const concern = usable(patch.concern);
     const response = usable(patch.response);
-    // 한계가 빠진 우려는 버린다. 답만 있고 한계가 없으면 설득이 아니라 변명이 된다.
+    // 한계가 빠진 우려는 쓰지 않는다. 답만 있고 한계가 없으면 설득이 아니라 변명이 된다.
     const honestLimit = usable(patch.honestLimit);
-    if (!concern || !response || !honestLimit) continue;
+    if (!concern || !response || !honestLimit) return current;
 
     const evidenceIds = patch.evidenceIds ?? [];
-    // 없는 경험을 근거로 든 우려는 통째로 버린다. 근거가 거짓이면 답도 거짓이다.
-    if (evidenceIds.some((id) => !knownExperienceIds.has(id))) continue;
+    // 근거가 아예 없는 우려도, 없는 경험을 근거로 든 우려도 쓰지 않는다.
+    // 근거가 거짓이면 답도 거짓이고, 근거가 없으면 사용자가 확인할 길조차 없다.
+    if (evidenceIds.length === 0) return current;
+    if (evidenceIds.some((id) => !knownExperienceIds.has(id))) return current;
 
-    kept.push({ concern, response, honestLimit, evidenceIds });
-  }
+    const fields: string[] = [];
+    if (concern !== current.concern) fields.push("concern");
+    if (response !== current.response) fields.push("response");
+    if (honestLimit !== current.honestLimit) fields.push("honestLimit");
+    if (!sameIds(evidenceIds, current.evidenceIds)) fields.push("evidenceIds");
+    if (fields.length === 0) return current;
 
-  if (kept.length === 0) return { value: original, changed: 0 };
-  return { value: kept, changed: kept.length };
+    for (const field of fields) changedPaths.push(`${pathPrefix}:concerns:${index}:${field}`);
+    return { concern, response, evidenceIds, honestLimit };
+  });
+
+  return { value, changedPaths };
 }
 
 function applyCandidacy(
   original: CandidacyCase,
   patch: CandidacyPatch | undefined,
   knownExperienceIds: Set<string>,
+  pathPrefix: string,
 ): Applied<CandidacyCase> {
-  if (!patch) return { value: original, changed: 0 };
+  if (!patch) return { value: original, changedPaths: [] };
 
-  let changed = 0;
+  const changedPaths: string[] = [];
 
-  const headline = usable(patch.headline);
-  if (headline) changed += 1;
+  const headlineText = usable(patch.headline);
+  const headline = headlineText && headlineText !== original.headline ? headlineText : null;
+  if (headline) changedPaths.push(`${pathPrefix}:headline`);
 
-  const reasons = usableList(patch.reasonsToConsider);
-  if (reasons.length > 0) changed += 1;
+  const reasons = applyTextList(
+    original.reasonsToConsider,
+    patch.reasonsToConsider,
+    `${pathPrefix}:reasonsToConsider`,
+  );
+  changedPaths.push(...reasons.changedPaths);
 
-  const conditions = usableList(patch.conditions);
-  if (conditions.length > 0) changed += 1;
+  const conditions = applyTextList(
+    original.conditions,
+    patch.conditions,
+    `${pathPrefix}:conditions`,
+  );
+  changedPaths.push(...conditions.changedPaths);
 
-  const concerns = applyConcerns(original.concerns, patch.concerns, knownExperienceIds);
-  changed += concerns.changed;
+  const concerns = applyConcerns(original.concerns, patch.concerns, knownExperienceIds, pathPrefix);
+  changedPaths.push(...concerns.changedPaths);
 
-  if (changed === 0) return { value: original, changed: 0 };
+  if (changedPaths.length === 0) return { value: original, changedPaths: [] };
 
   // stage 와 caution 은 바꾸지 않는다. "이건 추정이다"라는 경고는 앱의 말이지 모델의 말이 아니다.
   return {
     value: {
       ...original,
       headline: headline ?? original.headline,
-      reasonsToConsider: reasons.length > 0 ? reasons : original.reasonsToConsider,
-      conditions: conditions.length > 0 ? conditions : original.conditions,
+      reasonsToConsider: reasons.value,
+      conditions: conditions.value,
       concerns: concerns.value,
     },
-    changed,
+    changedPaths,
   };
 }
 
 /**
  * 검증을 통과한 값만 분석서에 얹는다. 입력 report 는 바꾸지 않는다.
- * changed 가 0 이면 쓸 수 있는 것이 하나도 없었다는 뜻이다.
+ * changedPaths 가 비어 있으면 쓸 수 있는 것이 하나도 없었다는 뜻이다.
  */
 export function applyEnrichment(
   report: StrategyReport,
@@ -378,31 +458,41 @@ export function applyEnrichment(
 ): Applied<StrategyReport> {
   const knownExperienceIds = new Set(profile.experiences.map((e) => e.id));
 
-  let changed = 0;
+  const changedPaths: string[] = [];
 
-  const oneLine = usable(patch.idealCandidateOneLine);
-  if (oneLine) changed += 1;
+  const oneLineText = usable(patch.idealCandidateOneLine);
+  const oneLine =
+    oneLineText && oneLineText !== report.idealCandidate.oneLine ? oneLineText : null;
+  if (oneLine) changedPaths.push("idealCandidate:oneLine");
 
   const dimensions = applyDimensions(report.dimensions, patch.dimensions);
-  changed += dimensions.changed;
+  changedPaths.push(...dimensions.changedPaths);
 
   const stories = applyStories(report.stories, patch.stories);
-  changed += stories.changed;
+  changedPaths.push(...stories.changedPaths);
 
-  const now = applyCandidacy(report.candidacyNow, patch.candidacyNow, knownExperienceIds);
-  changed += now.changed;
+  const now = applyCandidacy(
+    report.candidacyNow,
+    patch.candidacyNow,
+    knownExperienceIds,
+    "candidacyNow",
+  );
+  changedPaths.push(...now.changedPaths);
 
-  const future = applyCandidacy(report.candidacyFuture, patch.candidacyFuture, knownExperienceIds);
-  changed += future.changed;
+  const future = applyCandidacy(
+    report.candidacyFuture,
+    patch.candidacyFuture,
+    knownExperienceIds,
+    "candidacyFuture",
+  );
+  changedPaths.push(...future.changedPaths);
 
-  if (changed === 0) return { value: report, changed: 0 };
+  if (changedPaths.length === 0) return { value: report, changedPaths: [] };
 
   return {
     value: {
       ...report,
-      idealCandidate: oneLine
-        ? { ...report.idealCandidate, oneLine }
-        : report.idealCandidate,
+      idealCandidate: oneLine ? { ...report.idealCandidate, oneLine } : report.idealCandidate,
       dimensions: dimensions.value,
       stories: stories.value,
       candidacyNow: now.value,
@@ -410,7 +500,7 @@ export function applyEnrichment(
       // 총점·판정·필수 조건은 규칙 엔진 그대로다. 화면이 출처를 밝힐 수 있도록 표시만 바꾼다.
       generatedBy: "llm",
     },
-    changed,
+    changedPaths,
   };
 }
 
@@ -429,6 +519,12 @@ export interface EnrichOutcome {
   report: StrategyReport;
   usedLlm: boolean;
   failure?: LlmFailure;
+  /**
+   * 모델이 실제로 바꾼 자리의 경로.
+   * 화면이 "정밀 분석이 다듬은 문장"만 짚어 원문과 비교할 수 있어야 하기 때문에,
+   * 개수가 아니라 위치를 돌려준다. 실패했으면 빈 배열이다.
+   */
+  changedPaths: string[];
 }
 
 /**
@@ -439,25 +535,35 @@ export interface EnrichOutcome {
  * 동의·설정 확인(canUseLlm)은 호출부의 몫이다 — 이 함수는 이미 허락을 받은 뒤에만 불린다.
  */
 export async function enrichReport(input: EnrichInput): Promise<EnrichOutcome> {
-  const result = await callJson<EnrichPatch>(
-    {
-      modelId: input.modelId,
-      apiKey: input.apiKey,
-      system: ENRICH_SYSTEM_PROMPT,
-      user: buildEnrichUserPrompt(input.posting, input.profile, input.report),
-    },
-    validateEnrichPatch,
-  );
+  try {
+    const result = await callJson<EnrichPatch>(
+      {
+        modelId: input.modelId,
+        apiKey: input.apiKey,
+        system: ENRICH_SYSTEM_PROMPT,
+        user: buildEnrichUserPrompt(input.posting, input.profile, input.report),
+      },
+      validateEnrichPatch,
+    );
 
-  if (!result.ok) {
-    return { report: input.report, usedLlm: false, failure: result.reason };
+    if (!result.ok) {
+      return { report: input.report, usedLlm: false, failure: result.reason, changedPaths: [] };
+    }
+
+    const applied = applyEnrichment(input.report, result.data, input.profile);
+    if (applied.changedPaths.length === 0) {
+      // 모양은 맞았지만 검증을 통과한 문장이 하나도 없었다. 규칙 기반 결과가 그대로 낫다.
+      return { report: input.report, usedLlm: false, failure: "bad-response", changedPaths: [] };
+    }
+
+    return { report: applied.value, usedLlm: true, changedPaths: applied.changedPaths };
+  } catch {
+    /*
+     * "이 함수는 실패하지 않는다"를 주석이 아니라 코드로 지킨다.
+     * 모양이 깨진 분석서(예: dimensions 가 배열이 아님)는 프롬프트를 만드는 단계에서
+     * 이미 예외를 던지는데, 그게 밖으로 나가면 분석 화면 전체가 멈춘다.
+     * 규칙 기반 결과는 이미 손에 있으므로 그것을 그대로 돌려주는 편이 언제나 낫다.
+     */
+    return { report: input.report, usedLlm: false, failure: "bad-response", changedPaths: [] };
   }
-
-  const applied = applyEnrichment(input.report, result.data, input.profile);
-  if (applied.changed === 0) {
-    // 모양은 맞았지만 검증을 통과한 문장이 하나도 없었다. 규칙 기반 결과가 그대로 낫다.
-    return { report: input.report, usedLlm: false, failure: "bad-response" };
-  }
-
-  return { report: applied.value, usedLlm: true };
 }

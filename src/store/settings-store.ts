@@ -15,9 +15,26 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DEFAULT_LLM_SETTINGS, normalizeSettings, type LlmSettings } from "@/lib/llm/settings";
-import { resolveSettingsStore } from "@/lib/llm/settings-store";
+import { resolveSettingsStore, type SettingsFailure } from "@/lib/llm/settings-store";
 import { isSessionValid } from "@/lib/auth/types";
 import { useAuthStore } from "./auth-store";
+
+/**
+ * 이번 분석이 어느 길로 갔는가.
+ *
+ * 결과 화면이 "이 수치는 무엇으로 만들어졌나" 를 말할 수 있어야 하므로 남긴다.
+ * 규칙 기반으로 갔다면 그 이유까지 있어야 한다 — 정밀 분석을 켜 둔 사람이
+ * 왜 이번에는 쓰이지 않았는지 알 수 없으면, 켜 둔 것 자체를 의심하게 된다.
+ */
+export interface AnalysisOutcome {
+  /** 정밀 분석이 실제로 쓰였는가. false 면 화면에 보이는 것은 규칙 기반 결과다. */
+  usedLlm: boolean;
+  /** 규칙 기반으로 간 이유. 정밀 분석이 그대로 쓰였으면 null. */
+  reason: string | null;
+  /** 실제로 쓰인 모델 — 정밀 분석이 쓰였을 때만 */
+  modelId?: string;
+  at: string;
+}
 
 interface SettingsState {
   settings: LlmSettings;
@@ -27,10 +44,23 @@ interface SettingsState {
    * 관리 화면이 "이 배포에서는 정밀 분석을 쓸 수 없다" 를 구분해 알리기 위해 읽는다.
    */
   storeKind: "local" | "remote" | "unknown";
+  /**
+   * 마지막으로 설정을 바꾸려다 실패한 이유.
+   * 실패를 상태로 들고 있지 않으면 화면은 되돌아간 체크박스만 보여 주게 된다.
+   */
+  error: SettingsFailure | null;
+  /**
+   * 마지막 분석이 정밀이었는지 규칙 기반이었는지.
+   * 저장하지 않는다 — 지원 건마다 다른 값인데 이 저장소는 지원 건을 모르기 때문이다.
+   * 새로 분석할 때마다 다시 세운다.
+   */
+  lastAnalysis: AnalysisOutcome | null;
 
   load: () => Promise<void>;
   /** 관리자만 부른다. 서버 배포에서는 서버가 다시 한 번 권한을 확인한다. */
   update: (patch: Partial<LlmSettings>) => Promise<void>;
+  /** 분석을 마친 화면이 어느 길로 갔는지 여기에 남긴다. */
+  noteAnalysis: (outcome: AnalysisOutcome) => void;
 }
 
 /**
@@ -51,6 +81,8 @@ export const useSettingsStore = create<SettingsState>()(
       settings: DEFAULT_LLM_SETTINGS,
       loading: false,
       storeKind: "unknown",
+      error: null,
+      lastAnalysis: null,
 
       async load() {
         set({ loading: true });
@@ -64,22 +96,28 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       async update(patch) {
-        set({ loading: true });
+        // 새로 시도하는 순간 지난 실패 문구는 치운다. 남겨 두면 방금 성공한 변경을
+        // 실패한 것처럼 읽게 된다.
+        set({ loading: true, error: null });
         try {
           const store = await resolveSettingsStore(currentIdToken());
           const session = useAuthStore.getState().session;
           // 누가 언제 바꿨는지는 저장소가 아니라 부르는 쪽이 안다.
           // (서버 배포에서는 서버가 토큰에서 다시 확인해 덮어쓴다.)
-          const settings = await store.set({
+          const { error, ...settings } = await store.set({
             ...patch,
             updatedBy: patch.updatedBy ?? session?.member.email,
             updatedAt: patch.updatedAt ?? new Date().toISOString(),
           });
-          set({ settings, storeKind: store.kind });
+          // 실패했으면 settings 는 서버의 현재 값이다 — 바꾸려던 값이 아니라.
+          // 되돌아간 값과 그 이유를 함께 들고 있어야 화면이 둘을 같이 보여 줄 수 있다.
+          set({ settings, storeKind: store.kind, error: error ?? null });
         } finally {
           set({ loading: false });
         }
       },
+
+      noteAnalysis: (outcome) => set({ lastAnalysis: outcome }),
     }),
     {
       name: "rolefit-llm-settings-view",
@@ -110,6 +148,16 @@ export function useSettingsLoading(): boolean {
 
 export function useSettingsStoreKind(): "local" | "remote" | "unknown" {
   return useSettingsStore((s) => s.storeKind);
+}
+
+/** 마지막 설정 변경이 실패한 이유. 없으면 null. */
+export function useSettingsError(): SettingsFailure | null {
+  return useSettingsStore((s) => s.error);
+}
+
+/** 마지막 분석이 어느 길로 갔는지. 아직 분석한 적이 없으면 null. */
+export function useLastAnalysis(): AnalysisOutcome | null {
+  return useSettingsStore((s) => s.lastAnalysis);
 }
 
 /**
