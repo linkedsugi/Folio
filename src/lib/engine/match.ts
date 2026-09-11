@@ -630,6 +630,30 @@ export function primaryFact(exp: ExperienceItem): string {
   return exp.outcomes[0] ?? exp.tasks[0] ?? exp.summary ?? exp.ownRole ?? exp.title;
 }
 
+/**
+ * 그 요구에 가장 가까운 "실제 사실" 한 줄을 고른다.
+ * 같은 경험이라도 요구가 다르면 인용할 사실이 달라야 한다
+ * (예: 같은 3D 개발 경험이라도 기능 구현 요구에는 과업을, 최적화 요구에는 측정 성과를 쓴다).
+ * 없는 사실을 만들지 않고, 이미 적혀 있는 문장 중에서만 고른다.
+ */
+export function bestFactFor(exp: ExperienceItem, reqTokens: Set<string>): string {
+  const candidates = [...exp.outcomes, ...exp.tasks, exp.summary, exp.ownRole].filter(
+    (v): v is string => Boolean(v && v.trim()),
+  );
+  if (candidates.length === 0) return exp.title;
+  let best = candidates[0];
+  let bestScore = -1;
+  for (const c of candidates) {
+    // 측정 가능한 성과(outcomes)를 조금 우대한다.
+    const score = overlap(reqTokens, keywordsOf(c)).length + (exp.outcomes.includes(c) ? 0.5 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
+
 function evidenceRefs(posting: JobPosting, spec: DimensionSpec, matches: ExperienceMatch[]): EvidenceRef[] {
   const refs: EvidenceRef[] = [];
   const jdQuote = spec.requirement?.sourceQuote || spec.expectation;
@@ -930,7 +954,7 @@ export function buildStories(
     if (related.length === 0) continue; // 근거 없이 이야기를 만들지 않는다
 
     const primary = related[0].exp;
-    const fact = primaryFact(primary);
+    const fact = bestFactFor(primary, keywordsOf(dim.label, dim.teamExpectation));
     // 사실 문장 앞에 출처(조직)만 덧붙인다. 내용은 바꾸지 않는다.
     const resumeSentence = fact.includes(primary.organization) ? fact : `${primary.organization}에서 ${fact}`;
 
@@ -1069,9 +1093,9 @@ export function buildEnrichmentQuestions(
       // 기획서 05 의 예시 형식: "게임 외의 앱이나 3D 환경에서 …"
       question = `${anchorWord} 외의 환경에서 ${d.label} 문제를 직접 다뤄 본 경험이 있나요? 무엇을 바꾸었고 결과를 어떻게 측정했나요?`;
     } else if (d.usedExperienceIds.length === 0) {
-      question = `${d.label}과(와) 관련해 직접 수행한 일이 있나요? 무엇을 맡았고 결과를 어떻게 확인했는지 알려 주세요.`;
+      question = `${d.label}과(와) 관련해 직접 수행한 일이 있나요? 무엇을 맡았고 결과를 어떻게 확인했나요?`;
     } else if (d.current === 0) {
-      question = `${d.label}을(를) 본인이 주도해서 수행한 사례가 있나요? 어느 범위까지 직접 결정했는지 알려 주세요.`;
+      question = `${d.label}을(를) 본인이 주도해서 수행한 사례가 있나요? 어느 범위까지 직접 결정했나요?`;
     } else {
       question = `${d.label}에서 바꾼 내용과 그 결과를 어떻게 측정했나요? 전후 수치나 확인할 수 있는 자료가 있나요?`;
     }

@@ -1,69 +1,57 @@
-import Image from "next/image";
+/**
+ * 시작 화면 경로.
+ *
+ * 상태는 브라우저에만 보관하므로(지원자 자료는 기본 비공개) 클라이언트에서 읽는다.
+ * hydration 이 끝나기 전에는 저장된 지원 건을 그리지 않는다 — 서버 렌더 결과와
+ * 어긋나면 화면이 한 번 깜빡이기 때문.
+ */
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import type { SampleId } from "@/lib/types";
+import { SAMPLES, getSample } from "@/lib/samples";
+import { useAppStore, useHydrated } from "@/store/app-store";
+import { AppShell } from "@/components/AppShell";
+import { StartScreen } from "@/components/screens/StartScreen";
+
+export default function HomePage() {
+  const router = useRouter();
+  const hydrated = useHydrated();
+  const applications = useAppStore((s) => s.applications);
+  const createApplication = useAppStore((s) => s.createApplication);
+  const createFromSample = useAppStore((s) => s.createFromSample);
+  const deleteApplication = useAppStore((s) => s.deleteApplication);
+  const setActive = useAppStore((s) => s.setActive);
+
+  function startOwn() {
+    createApplication();
+    router.push("/apply/intake");
+  }
+
+  function startSample(id: SampleId) {
+    const sample = getSample(id);
+    if (!sample) return;
+    createFromSample(sample);
+    // 샘플은 결과를 먼저 보여주는 것이 목적이므로 입력 단계를 건너뛴다.
+    router.push("/apply/baseline");
+  }
+
+  function open(id: string) {
+    setActive(id);
+    const app = applications.find((a) => a.id === id);
+    router.push(`/apply/${app?.stage ?? "intake"}`);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <AppShell app={null} stage="start">
+      <StartScreen
+        samples={SAMPLES}
+        applications={hydrated ? applications : []}
+        onStartOwn={startOwn}
+        onStartSample={startSample}
+        onOpen={open}
+        onDelete={deleteApplication}
+      />
+    </AppShell>
   );
 }

@@ -239,8 +239,14 @@ export function parsePeriod(input: string): ParsedPeriod | null {
   const tokens = scanDateTokens(text);
   if (tokens.length === 0) return null;
 
-  const first = tokens[0];
-  const second = tokens[1];
+  // "글로벌 게임잼 2024 · 팀 프로젝트 | 2024.06" 처럼 이름 안에 연도가 섞이는 일이 잦다.
+  // 월까지 적힌 토큰이 하나라도 있으면 거기서부터 읽어야 실제 기간에 가깝다.
+  const base = Math.max(
+    0,
+    tokens.findIndex((t) => t.month !== null),
+  );
+  const first = tokens[base];
+  const second = tokens[base + 1];
   const ongoingMatch = ONGOING_RE.exec(text.slice(first.end));
 
   // 두 토큰 사이가 기간 구분자뿐이면 범위로 읽는다.

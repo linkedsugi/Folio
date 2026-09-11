@@ -26,7 +26,6 @@ import { RESPONSIBILITY_LEVEL_LABEL } from "../types";
 import {
   type BulletItem,
   containsAny,
-  findFirst,
   lineContaining,
   normalize,
   objectParticle,
@@ -483,72 +482,39 @@ function buildRequirement(item: BulletItem, kind: RequirementKind, index: number
  * 책임 수준 신호.
  * 위에서부터 검사해 가장 높은 수준을 택한다. 성격이 아니라 "맡기려는 책임 범위"만 본다.
  */
-const RESPONSIBILITY_SIGNALS: Array<{ level: ResponsibilityLevel; words: string[] }> = [
+const RESPONSIBILITY_SIGNALS: Array<{ level: ResponsibilityLevel; label: string; re: RegExp }> = [
   {
     level: "own-org",
-    words: [
-      "조직 책임",
-      "조직을 책임",
-      "조직 운영",
-      "손익",
-      "p&l",
-      "총괄",
-      "부문장",
-      "본부",
-      "head of",
-      "country manager",
-      "국가 매출",
-    ],
+    label: "조직·손익 책임",
+    re: /조직\s*(?:책임|운영)[가-힣]*|손익[가-힣]*|P&L|부문장|본부장|\bhead of\b|country\s*manager/i,
   },
   {
     level: "lead",
-    words: [
-      "리드",
-      "리딩",
-      "이끌",
-      "팀장",
-      "책임지",
-      "책임을 지",
-      "책임 있게",
-      "책임자",
-      "매니징",
-      "관리 감독",
-      "lead ",
-      "leading",
-      "mentor",
-      "멘토링",
-    ],
+    label: "리드·총괄·책임",
+    re: /(?:리드|리딩|총괄|팀장|책임자|매니징|멘토링)[가-힣]*|책임(?:지|집|질|져)[가-힣]*|이끄[가-힣]*|이끌[가-힣]*|\blead(?:s|ing)?\b|\bmentor(?:ing)?\b/i,
   },
   {
     level: "independent",
-    words: [
-      "주도",
-      "독립",
-      "단독",
-      "설계",
-      "직접 수행",
-      "오너십",
-      "ownership",
-      "independently",
-      "drive",
-      "design",
-      "own the",
-    ],
+    label: "주도·독립·설계",
+    re: /(?:주도|독립|단독|설계|전담|오너십)[가-힣]*|직접\s*(?:수행|구현|설계)[가-힣]*|\bownership\b|\bindependently\b|\bdrive[sn]?\b/i,
   },
 ];
 
 interface LevelDecision {
   level: ResponsibilityLevel;
+  /** 근거가 된 표현 그대로 */
   signal: string | null;
+  label: string | null;
+  /** 그 표현이 들어 있던 원문 줄 */
   quote: string | null;
 }
 
 function detectResponsibilityLevel(body: string): LevelDecision {
-  for (const { level, words } of RESPONSIBILITY_SIGNALS) {
-    const signal = findFirst(body, words);
-    if (signal) return { level, signal, quote: lineContaining(body, signal) };
+  for (const { level, label, re } of RESPONSIBILITY_SIGNALS) {
+    const m = re.exec(body);
+    if (m) return { level, signal: m[0], label, quote: lineContaining(body, m[0]) };
   }
-  return { level: "participate", signal: null, quote: null };
+  return { level: "participate", signal: null, label: null, quote: null };
 }
 
 /** 업무 문장을 명사구로 다듬어 인재상 한 문장에 넣는다. */
@@ -556,7 +522,10 @@ function toTaskNoun(task: string): string {
   let value = task.split(/[.\n]/)[0].trim();
   value = value.replace(/\s*[(（][^)）]*[)）]\s*/g, " ");
   value = value.replace(/\s*(?:등|및\s*기타)\s*$/, "");
-  value = value.replace(/(했습니다|합니다|해요|한다|하기|하며|하고|함|할\s*수\s*있는|하는\s*일)\s*$/, "");
+  value = value.replace(
+    /(했습니다|합니다|집니다|됩니다|입니다|해요|한다|된다|하기|하며|하고|함|할\s*수\s*있는|하는\s*일)\s*$/,
+    "",
+  );
   value = value.replace(/\s*(?:을|를|이|가|은|는)\s*$/, "");
   value = value.replace(/[,·:;\-–—]+$/, "").trim();
   return shorten(value || task.trim(), 22);
@@ -627,7 +596,7 @@ function buildIdealCandidate(args: {
       ? [{ source: "jd" as const, refId: postingId, quote: decision.quote }]
       : [],
     interpretation: decision.signal
-      ? `공고의 "${decision.signal}" 표현을 책임 범위의 근거로 보았습니다.`
+      ? `${decision.label} 신호("${decision.signal}")를 책임 범위의 근거로 보았습니다.`
       : "책임 범위를 가리키는 표현이 없어 가장 낮은 수준(단순 참여)으로 두었습니다. 확인이 필요합니다.",
   });
   if (mustRequirements.length > 0) {

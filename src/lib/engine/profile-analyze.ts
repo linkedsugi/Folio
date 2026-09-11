@@ -30,7 +30,6 @@ import {
   currentMonthKey,
   extractEmails,
   extractUrls,
-  findFirst,
   mergeMonthRanges,
   monthsBetween,
   normalize,
@@ -159,20 +158,29 @@ export function detectPublicationStatus(text: string): PublicationStatus | undef
 
 /* ────────────────────────────────────────────── 책임 수준 */
 
-const RESPONSIBILITY_SIGNALS: Array<{ level: ResponsibilityLevel; words: string[] }> = [
-  { level: "own-org", words: ["조직 책임", "조직을 운영", "손익", "p&l", "총괄", "부문장", "본부장", "대표"] },
-  { level: "lead", words: ["리드", "리딩", "팀장", "이끌", "책임자", "총괄 담당", "멘토링", "후배 지도", "매니징"] },
+const RESPONSIBILITY_SIGNALS: Array<{ level: ResponsibilityLevel; re: RegExp }> = [
+  {
+    level: "own-org",
+    re: /조직\s*(?:책임|운영)[가-힣]*|손익[가-힣]*|P&L|부문장|본부장|\bhead of\b/i,
+  },
+  {
+    level: "lead",
+    re: /(?:리드|리딩|총괄|팀장|책임자|매니징|멘토링)[가-힣]*|책임(?:지|집|질|져)[가-힣]*|이끌[가-힣]*|후배\s*지도[가-힣]*/i,
+  },
   {
     level: "independent",
-    words: ["단독", "독립", "주도", "직접 설계", "직접 구현", "혼자", "오너십", "전담", "설계했", "설계하고"],
+    re: /(?:단독|독립|주도|전담|오너십|혼자)[가-힣]*|직접\s*(?:수행|구현|설계|개선)[가-힣]*|설계(?:했|하고|하여)[가-힣]*/i,
   },
-  { level: "participate", words: ["참여", "보조", "지원했", "함께", "협업", "어시스트"] },
+  {
+    level: "participate",
+    re: /(?:참여|보조|협업|어시스트)[가-힣]*|지원(?:했|하여|해)[가-힣]*/i,
+  },
 ];
 
 function detectResponsibilityLevel(text: string): { level: ResponsibilityLevel; signal: string | null } {
-  for (const { level, words } of RESPONSIBILITY_SIGNALS) {
-    const signal = findFirst(text, words);
-    if (signal) return { level, signal };
+  for (const { level, re } of RESPONSIBILITY_SIGNALS) {
+    const m = re.exec(text);
+    if (m) return { level, signal: m[0] };
   }
   return { level: "participate", signal: null };
 }

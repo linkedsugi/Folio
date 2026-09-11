@@ -410,6 +410,32 @@ function extendWithStories(base: WorkDoc, ctx: DocContext): WorkDoc {
     } else if (!entry.lines.some((l) => l.id === line.id)) {
       entry.lines.push(line);
     }
+
+    // 이야기가 근거로 삼은 나머지 관련 경험도 사실 그대로 함께 싣는다.
+    // (연결 설명은 대표 경험 한 건에만 붙이고, 나머지는 원래 사실만 옮긴다)
+    for (const otherId of story.usedExperienceIds.slice(1)) {
+      const other = ctx.expById.get(otherId);
+      if (!other) continue;
+      let otherEntry = entries.find((e) => e.experienceId === other.id);
+      if (!otherEntry) {
+        otherEntry = makeEntry(other, ctx, []);
+        entries.push(otherEntry);
+      }
+      if (otherEntry.lines.length > 0) continue; // 이미 실린 경험이면 문장을 더 늘리지 않는다
+      const facts = uniq([...other.outcomes, ...other.tasks]).filter(Boolean);
+      const picked = facts.length > 0 ? facts.slice(0, maxLinesPerEntry(ctx.targetPages)) : [primaryFact(other)];
+      for (const fact of picked) {
+        otherEntry.lines.push(
+          makeLine({
+            experienceId: other.id,
+            basis: "related",
+            text: fact,
+            dimensionId: story.dimensionId,
+            jdExpectation: dim?.teamExpectation ?? story.teamExpectation,
+          }),
+        );
+      }
+    }
   }
 
   entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey) || a.key.localeCompare(b.key));
