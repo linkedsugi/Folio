@@ -1412,6 +1412,17 @@ export function buildEnrichmentQuestions(
 
 /* ──────────────────────────────────────────────── 11. 분석서 조립 */
 
+/**
+ * 이 조건이 "자격의 문턱" 인가.
+ * 연수 조건이거나, 학위·자격증처럼 보유 여부로 갈리는 조건이면 그렇다.
+ */
+export function isCredentialBar(req: Requirement): boolean {
+  if (parseTenure(req)) return true;
+  return /학위|박사|석사|학사|자격증|면허|degree|ph\.?d|m\.?s\.?|licen[cs]e|certifi/i.test(
+    `${req.label} ${req.text}`,
+  );
+}
+
 export function buildReport(
   posting: JobPosting,
   profile: ApplicantProfile,
@@ -1424,10 +1435,27 @@ export function buildReport(
   const actions = buildActions(dimensions, posting);
   const overall = computeOverall(dimensions);
   const mustHaveStatus = deriveMustHaveStatus(posting.requirements, dimensions);
-  const equivalenceUnknown = posting.requirements.some(
-    (r) => r.kind === "must" && r.equivalence === "unknown",
+  /*
+   * 동등 경험 인정 여부를 물어야 하는 조건은 "자격의 문턱" 뿐이다.
+   *
+   * 경력 연수·학위·자격증은 회사가 어디까지 인정하는지에 따라 지원 가능 여부가 갈리고,
+   * 지원자가 단기간에 바꿀 수도 없다. 그래서 문의할 값어치가 있다.
+   * 반면 "Unity 로 기능을 구현한 경험" 같은 조건에는 동등이랄 것이 없다 — 했거나 안 했거나다.
+   *
+   * 이 구분을 하지 않으면 거의 모든 공고가 "조건 확인과 지원 병행" 하나로 몰린다.
+   * 그러면 판단이 아무것도 가르지 못한다.
+   */
+  const unmet = new Set(
+    mustHaveStatus.filter((m) => m.state !== "met").map((m) => m.requirementId),
   );
-  const verdict = deriveVerdict(overall, mustHaveStatus, equivalenceUnknown);
+  const equivalenceUnknownOnGap = posting.requirements.some(
+    (r) =>
+      r.kind === "must" &&
+      r.equivalence === "unknown" &&
+      unmet.has(r.id) &&
+      isCredentialBar(r),
+  );
+  const verdict = deriveVerdict(overall, mustHaveStatus, equivalenceUnknownOnGap);
 
   const caveats = dimensions.filter((d) => d.targetCaveat).map((d) => d.label);
   const verdictNote = [

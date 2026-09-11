@@ -84,3 +84,28 @@ describe("샘플 5종", () => {
     expect(tenure!.target).toBe(tenure!.afterStory);
   });
 });
+
+describe("지원 판단은 총점 하나로 결정하지 않는다", () => {
+  it("샘플마다 같은 판단이 나오지 않는다", () => {
+    // 한 판단으로 몰리면 그 판단은 아무것도 가르지 못한다.
+    // 실제로 "필수 조건 중 하나라도 동등 인정 여부가 불확실하면" 으로 판정하던 때
+    // 다섯 샘플이 전부 같은 결론이 나왔다.
+    const verdicts = new Set(samples.map((s) => s.report.verdict));
+    expect(verdicts.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it("샘플 A 는 동등 경력 인정 여부를 확인하며 지원을 준비한다", () => {
+    // 기획서 03 의 "지금의 판단" 과 같은 결론이어야 한다.
+    const a = samples.find((s) => s.id === "sample-a");
+    expect(a!.report.verdict).toBe("apply-while-confirming");
+  });
+
+  it("신입 공고에 지원하는 신입에게 지원 범위를 줄이라고 하지 않는다", () => {
+    // 기획서 13: 낮은 점수로 불안을 자극하지 않는다.
+    // 신입 공고는 조건이 비어 있는 것이 정상이므로 가장 무거운 안내를 주면 안 된다.
+    const d = samples.find((s) => s.id === "sample-d");
+    expect(d!.report.verdict).not.toBe("adjust-scope");
+    // 신입 공고에 임의의 연수 부족 항목을 만들지도 않는다. (기획서 12 샘플 D)
+    expect(d!.report.dimensions.some((x) => x.targetCaveat)).toBe(false);
+  });
+});

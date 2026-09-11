@@ -139,10 +139,12 @@ export function deriveMustHaveStatus(
           note: dim.remainingGap || "확인이 더 필요한 항목입니다.",
         };
       }
-      if (dim.current >= 100) {
+      // 만점만 "충족" 으로 보면 거의 모든 조건이 미충족이 되어, 조건을 갖춘 지원자에게도
+      // 지원하지 말라는 신호를 준다. 직접 수행한 근거가 충분하면 충족으로 본다.
+      if (dim.current >= 75) {
         return { requirementId: r.id, label: r.label, state: "met" as const, note: dim.currentBasis };
       }
-      if (dim.afterStory >= 75 || dim.current >= 50) {
+      if (dim.afterStory >= 50 || dim.current >= 25) {
         return {
           requirementId: r.id,
           label: r.label,
@@ -166,22 +168,39 @@ export function deriveMustHaveStatus(
 export function deriveVerdict(
   overall: OverallMatch,
   mustHave: MustHaveStatus[],
-  equivalenceUnknown: boolean,
+  /**
+   * **충족하지 못한** 필수 조건 중에 동등 경험 인정 여부가 불확실한 것이 있는가.
+   *
+   * 공고 전체에 하나라도 불확실한 조건이 있는지로 판단하면 안 된다.
+   * 거의 모든 공고에 그런 조건이 하나쯤은 있어서, 모든 지원이 똑같이
+   * "조건 확인과 지원 병행" 으로 나와 판단이 아무것도 가르지 못하게 된다.
+   * 이미 충족한 조건의 동등 인정 여부는 물어볼 이유가 없다.
+   */
+  equivalenceUnknownOnGap: boolean,
 ): ApplicationVerdict {
   const notMet = mustHave.filter((m) => m.state === "not-met").length;
+  const partial = mustHave.filter((m) => m.state === "partially-met").length;
   const unconfirmed = mustHave.filter((m) => m.state === "needs-confirmation").length;
   const met = mustHave.filter((m) => m.state === "met").length;
+  const gaps = notMet + partial + unconfirmed;
 
-  // 동등 경험 인정 여부가 불확실하면 문의와 준비를 병행한다.
-  if ((unconfirmed > 0 || equivalenceUnknown) && overall.raw.afterStory >= 40) {
+  // 필수를 모두 충족했다면 더 물을 것이 없다. 남은 일은 사실 확인과 문서 완성이다.
+  if (gaps === 0 && met === mustHave.length) return "proceed-with-current";
+
+  /*
+   * 지원 범위 조정은 가장 무거운 안내다. 함부로 주면 "지원하지 마세요" 로 읽힌다.
+   * 기획서 13 은 낮은 점수로 불안을 자극하지 말라고 못박았다.
+   * 그래서 필수 조건이 여럿 비어 있으면서 전체 설명력도 낮을 때만 준다.
+   * 신입 공고에 지원하는 신입처럼, 조건이 비어도 그것이 정상인 경우를 걸러내기 위해서다.
+   */
+  if (notMet >= 2 && overall.raw.afterStory < 45) return "adjust-scope";
+
+  // 판단에 필요한 정보 자체가 없거나, 못 채운 조건을 동등 경험으로 인정받을 수 있을지
+  // 모르는 경우에만 문의와 준비를 병행한다.
+  if ((unconfirmed > 0 || equivalenceUnknownOnGap) && overall.raw.afterStory >= 40) {
     return "apply-while-confirming";
   }
-  if (notMet === 0 && met === mustHave.length && overall.raw.afterStory >= 65) {
-    return "proceed-with-current";
-  }
-  if (notMet >= 2 && overall.raw.afterStory < 35) {
-    return "adjust-scope";
-  }
+
   return "strengthen-then-reassess";
 }
 
