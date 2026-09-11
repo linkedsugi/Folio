@@ -624,7 +624,12 @@ function toTaskNoun(task: string): string {
   );
   value = value.replace(/\s*(?:을|를|이|가|은|는)\s*$/, "");
   value = value.replace(/[,·:;\-–—]+$/, "").trim();
-  return cutAtWord(value || task.trim(), 26);
+  const body = value || task.trim();
+  if (body.length <= 32) return body;
+  // 낱말 경계보다 절 경계에서 자르는 편이 말이 덜 끊긴다.
+  const clause = /^(.{10,32}?(?:하고|하며|하여|해서|,))\s/.exec(body);
+  if (clause) return clause[1].replace(/[,\s]+$/, "");
+  return cutAtWord(body, 32);
 }
 
 /** 업무에서 팀이 기대하는 결과를 말로 풀어 준다. 근거 없는 수치는 만들지 않는다. */
@@ -654,6 +659,27 @@ function buildCoreTasks(responsibilities: string[]): CoreTask[] {
   }));
 }
 
+/**
+ * 잘려 나온 조각의 끝을 정리한다.
+ *
+ * "구현 범위를 스스로", "분석 결과를 설명하고" 처럼 뒤에 말이 더 있어야 하는 꼬리를 떼면
+ * 짧아도 말이 되는 덩어리가 남는다. 반쪽 문장은 없는 것만 못하다.
+ */
+function trimDangling(text: string): string {
+  let value = text.replace(/…$/, "").trim();
+  for (let i = 0; i < 3; i += 1) {
+    const before = value;
+    value = value
+      .replace(/\s*(?:그리고|또는|및|스스로|직접|함께|적극|모두|계속)$/, "")
+      .replace(/(?:하고|하며|하여|해서|해|되어|되고|이고|이며)$/, "")
+      .replace(/\s*(?:을|를|이|가|은|는|에|에서|으로|로|와|과)$/, "")
+      .replace(/[,·:;\-–—]+$/, "")
+      .trim();
+    if (value === before) break;
+  }
+  return value;
+}
+
 function buildIdealCandidate(args: {
   postingId: string;
   body: string;
@@ -668,9 +694,24 @@ function buildIdealCandidate(args: {
 
   const nouns = coreTasks.map((t) => toTaskNoun(t.task));
   const subject = roleTitle || "지원자";
-  // 업무 문구에 이미 "…을/를" 이 들어 있는 경우가 많아, 뒤에 조사를 또 붙이면 문장이 깨진다.
-  // 그래서 업무는 나열하고 한 번만 "이 일을 맡을 ○○" 로 닫는다.
-  const oneLine = nouns.length > 0 ? `${nouns.join(" · ")} — 이 일을 맡을 ${subject}` : "";
+  /*
+   * 인재상 한 줄은 사용자가 가장 먼저 읽는 문장이다.
+   *
+   * 공고 문구를 이어 붙여 매끄러운 한국어 문장을 만들려고 하지 않는다.
+   * 조각 뒤에 조사를 붙이면 "…개선를 맡을" 처럼 틀린 말이 나오고,
+   * 길이를 맞추려고 자르면 "…스스로" 같은 반쪽이 남는다.
+   * 기계가 만든 어색한 문장은 분석 전체의 신뢰를 깎는다.
+   *
+   * 그래서 조각에 조사를 붙이지 않는 틀을 쓴다.
+   * 사람이 다듬은 문장처럼 보이려 하기보다, 읽는 사람이 바로 이해하는 쪽을 택한다.
+   */
+  const clean = nouns
+    .map((n) => trimDangling(n))
+    .filter((n) => n.length >= 4);
+  // 직무명을 남겨 둔다. 이 한 줄만 따로 실리는 곳(분석서 Word 문서)이 있어서
+  // 혼자서도 누구를 찾는 공고인지 알 수 있어야 한다.
+  const oneLine =
+    clean.length > 0 ? `${subject} — 이 팀이 맡기려는 일: ${clean.join(" / ")}` : "";
 
   const rationale: RationaleNote[] = [];
   if (coreTasks.length > 0) {

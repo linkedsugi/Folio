@@ -39,12 +39,10 @@ export function AppShell({
                 |
               </span>
               <p className="min-w-0 flex-1 truncate text-[12px] text-ink-muted">
-                <span className="font-medium text-ink">{app.name}</span>
-                {app.posting ? (
-                  <span className="ml-1.5">
-                    {app.posting.company} · {app.posting.roleTitle}
-                  </span>
-                ) : null}
+                {/* 지원 건 이름이 이미 "회사 · 직무" 이면 같은 말을 두 번 쓰지 않는다. */}
+                <span className="font-medium text-ink">
+                  {app.posting ? `${app.posting.company} · ${app.posting.roleTitle}` : app.name}
+                </span>
                 {app.sampleId ? (
                   <span className="ml-1.5 rounded-sm bg-surface-sunken px-1 text-[10px] font-medium">
                     샘플

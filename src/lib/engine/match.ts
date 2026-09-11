@@ -49,6 +49,7 @@ import {
   normalizeDimensions,
   READING_NOTE,
 } from "../scoring";
+import { shorten } from "./text-utils";
 import { buildCandidacyFuture, buildCandidacyNow } from "./candidacy";
 
 /* ──────────────────────────────────────────────── 0. 결정적 id / 작은 도구 */
@@ -1080,18 +1081,52 @@ function buildOneDimension(
             .slice(0, 4)
             .join(", ")}).`
         : "이 기대를 직접 수행한 기록을 찾지 못했습니다.";
-    storyBasis =
-      related.length > 0
-        ? `${related
-            .slice(0, 2)
-            .map((m) => `${describeExperience(m.exp)}의 ${EXPERIENCE_KIND_LABEL[m.exp.kind]} 경험`)
-            .join(", ")}을 이 기대와 연결해 설명할 수 있습니다. 다른 환경의 성과를 이 직무의 성과로 바꾸지 않습니다.`
-        : "연결할 관련 경험을 찾지 못했습니다. 문장을 고쳐도 이 값은 오르지 않습니다.";
+    /*
+     * 표의 "스토리텔링에 활용할 경험" 칸은 부문마다 달라야 쓸모가 있다.
+     * 관련 경험을 전부 나열하면 어느 줄이나 같은 문장이 되고, 그러면
+     * 사용자는 이 칸을 읽지 않게 된다 — 실제로 그렇게 나온 화면을 보고 고쳤다.
+     * 가장 관련이 높은 경험 하나를 고르고, 그 경험에서 이 기대와 맞물린
+     * 실제 문장 하나를 함께 보여준다.
+     */
+    if (related.length > 0) {
+      const top = related[0];
+      const fact = top.matchedFacts[0];
+      const others =
+        related.length > 1 ? ` 외 ${related.length - 1}건도 같은 맥락으로 쓸 수 있습니다.` : "";
+      storyBasis = fact
+        ? `${describeExperience(top.exp)} — “${shorten(fact, 60)}”${others}`
+        : `${describeExperience(top.exp)}의 ${EXPERIENCE_KIND_LABEL[top.exp.kind]} 경험을 이 기대와 연결합니다.${others}`;
+    } else {
+      storyBasis = "연결할 관련 경험을 찾지 못했습니다. 문장을 고쳐도 이 값은 오르지 않습니다.";
+    }
+    /*
+     * 이후 진행할 일과 완료 증거도 부문마다 달라야 한다.
+     * 무엇을 요구하는 부문인지에 따라 남겨야 할 증거의 종류가 다르기 때문이다.
+     * (측정이 필요한 일 / 책임 범위를 보여야 하는 일 / 협업 기록이 필요한 일)
+     */
+    const label = spec.label;
+    const needsMeasurement = /성능|최적화|개선|분석|지표|속도|효율|품질/.test(label);
+    const needsOwnership = /책임|출시|배포|운영|리드|관리|총괄|손익/.test(label);
+    const needsCollaboration = /협업|리뷰|멘토링|소통|조율|협의/.test(label);
+
     nextStep =
       current >= 75
-        ? `${quoted(spec.label)} 에서 맡은 범위와 성과를 정리해 설명 가능한 형태로 만든다.`
-        : `${quoted(spec.label)} 을 요구 범위에서 직접 수행하고, 본인 판단과 결과를 남긴다.`;
-    evidenceToProduce = "수행 기록·본인 역할 설명·전후 측정 자료·동료 확인(리뷰·피드백)";
+        ? `${quoted(label)} 에서 맡은 범위와 결과를 설명 가능한 형태로 정리한다.`
+        : needsMeasurement
+          ? `${quoted(label)} 를 같은 조건에서 전후로 측정하며 직접 개선한다.`
+          : needsOwnership
+            ? `${quoted(label)} 의 한 단계를 끝까지 책임지고 그 결정 과정을 남긴다.`
+            : needsCollaboration
+              ? `${quoted(label)} 를 반복해서 수행하고 상대방의 확인을 받는다.`
+              : `${quoted(label)} 를 요구 범위에서 직접 수행하고 결과를 남긴다.`;
+
+    evidenceToProduce = needsMeasurement
+      ? "같은 조건의 전후 측정치, 본인이 바꾼 부분, 판단 과정"
+      : needsOwnership
+        ? "맡은 단계의 기록, 본인이 내린 결정, 그 결과"
+        : needsCollaboration
+          ? "진행 기록, 상대방의 확인이나 피드백"
+          : "수행 기록, 본인 역할 설명, 확인 가능한 결과물";
     remainingGap =
       afterStory >= 75
         ? "요구 범위 전체를 직접 책임진 근거가 남아 있습니다."

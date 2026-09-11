@@ -127,14 +127,15 @@ export function MappingScreen({
         <p className="mt-0.5 text-sm leading-snug font-bold text-ink">
           {report.idealCandidate.oneLine}
         </p>
+        {/*
+          조건을 한 줄에 모두 이어 붙이면 회색 덩어리가 되어 아무도 읽지 않는다.
+          여기서는 개수만 알리고, 실제 조건은 아래 표에서 부문별로 본다.
+        */}
         <p className="mt-1 text-[11px] leading-snug text-ink-faint">
           {posting.company}
-          {posting.team ? ` · ${posting.team}` : ""} · {posting.roleTitle}
-          {" · "}
-          필수: {posting.requirements.filter((r) => r.kind === "must").map((r) => r.label).join(" · ")}
-          {posting.requirements.some((r) => r.kind === "preferred")
-            ? ` · 우대: ${posting.requirements.filter((r) => r.kind === "preferred").map((r) => r.label).join(" · ")}`
-            : ""}
+          {posting.team ? ` · ${posting.team}` : ""} · {posting.roleTitle} · 필수{" "}
+          {posting.requirements.filter((r) => r.kind === "must").length}개 · 우대{" "}
+          {posting.requirements.filter((r) => r.kind === "preferred").length}개
         </p>
       </div>
 
