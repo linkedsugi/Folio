@@ -45,7 +45,7 @@ export const ENRICH_SYSTEM_PROMPT = [
   "{",
   '  "idealCandidateOneLine": "모집팀이 찾는 사람을 한 문장으로",',
   '  "dimensions": [{ "id": "주어진 부문 id", "currentBasis": "", "storyBasis": "", "remainingGap": "" }],',
-  '  "stories": [{ "id": "주어진 스토리 id", "connectionLogic": "", "resumeSentence": "", "interviewNote": "", "scopeAndLimit": "" }],',
+  '  "stories": [{ "id": "주어진 스토리 id", "connectionLogic": "", "resumeSentence": "", "interviewNote": "" }],',
   '  "candidacyNow": {',
   '    "headline": "이 팀이 지금 나를 검토할 이유 한 문장",',
   '    "reasonsToConsider": [""],',

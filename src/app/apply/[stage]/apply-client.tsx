@@ -35,7 +35,11 @@ import { findModel } from "@/lib/llm/models";
 import { canUseLlm, llmUnavailableReason } from "@/lib/llm/settings";
 import { isSessionValid } from "@/lib/auth/types";
 import type { ResumeLinePatch } from "@/components/resume/ResumeEditor";
-import { useActiveApplication, useAppStore, useHydrated } from "@/store/app-store";
+import {
+  useActiveApplication,
+  useAppStore,
+  useHydrated,
+} from "@/store/app-store";
 import { useAuthStore } from "@/store/auth-store";
 import {
   useLastAnalysis,
@@ -45,11 +49,21 @@ import {
 } from "@/store/settings-store";
 import { AppShell } from "@/components/AppShell";
 import { Callout } from "@/components/ui";
-import { IntakeScreen, type IntakeValue } from "@/components/screens/IntakeScreen";
+import {
+  IntakeScreen,
+  type IntakeValue,
+} from "@/components/screens/IntakeScreen";
 import { ReviewScreen } from "@/components/screens/ReviewScreen";
 import { MappingScreen } from "@/components/screens/MappingScreen";
 import { ResumeWorkbench } from "@/components/screens/ResumeWorkbench";
-import { ExportScreen, type ExportFormat } from "@/components/screens/ExportScreen";
+import {
+  ExportScreen,
+  type ExportFormat,
+} from "@/components/screens/ExportScreen";
+
+/** 보강을 얹다 예기치 못하게 실패했을 때. 사용자는 규칙 기반 결과를 그대로 받는다. */
+const ENRICH_CRASH_REASON =
+  "정밀 분석을 반영하는 중 문제가 생겨 기기 안에서 분석한 결과를 그대로 보여 드립니다.";
 
 const EMPTY_INTAKE: IntakeValue = {
   jdText: "",
@@ -61,14 +75,22 @@ const EMPTY_INTAKE: IntakeValue = {
 
 /* ─────────────────────────────── 정밀 분석 부탁하기 */
 
-const NO_SERVER_REASON = "이 배포에는 정밀 분석 서버가 없어 기기 안에서 분석했습니다.";
+const NO_SERVER_REASON =
+  "이 배포에는 정밀 분석 서버가 없어 기기 안에서 분석했습니다.";
 const NETWORK_REASON = "정밀 분석 서버에 닿지 못해 기기 안에서 분석했습니다.";
-const UNREADABLE_REASON = "정밀 분석 결과를 읽지 못해 기기 안에서 분석한 결과를 씁니다.";
+const UNREADABLE_REASON =
+  "정밀 분석 결과를 읽지 못해 기기 안에서 분석한 결과를 씁니다.";
 const SHAPE_MISMATCH_REASON =
   "정밀 분석 결과가 기기에서 계산한 값과 달라 쓰지 않았습니다. 화면의 수치는 규칙 기반 그대로입니다.";
 
 type PrecisionResult =
-  | { ok: true; report: StrategyReport; usedLlm: boolean; modelId?: string; reason: string | null }
+  | {
+      ok: true;
+      report: StrategyReport;
+      usedLlm: boolean;
+      modelId?: string;
+      reason: string | null;
+    }
   | { ok: false; reason: string };
 
 /**
@@ -78,7 +100,11 @@ type PrecisionResult =
  * 화면에 못 올라가기 때문이다. 실패는 전부 "이유가 붙은 값" 으로 돌려준다.
  */
 async function requestPrecision(
-  payload: { posting: JobPosting; profile: ApplicantProfile; report: StrategyReport },
+  payload: {
+    posting: JobPosting;
+    profile: ApplicantProfile;
+    report: StrategyReport;
+  },
   idToken: string | null,
 ): Promise<PrecisionResult> {
   try {
@@ -129,9 +155,15 @@ async function requestPrecision(
  * 점수나 부문이 달라진 응답을 그대로 올리면 "규칙 엔진이 진실" 이라는 말이 무너지고
  * 같은 이력에 다른 매칭률이 나오기 때문이다. 어긋나면 보강을 통째로 버린다.
  */
-function keepsRuleBasedShape(base: StrategyReport, next: StrategyReport): boolean {
+function keepsRuleBasedShape(
+  base: StrategyReport,
+  next: StrategyReport,
+): boolean {
   if (!next || typeof next !== "object") return false;
-  if (!Array.isArray(next.dimensions) || next.dimensions.length !== base.dimensions.length) {
+  if (
+    !Array.isArray(next.dimensions) ||
+    next.dimensions.length !== base.dimensions.length
+  ) {
     return false;
   }
   const sameDimensions = base.dimensions.every((dim, i) => {
@@ -158,8 +190,16 @@ function keepsRuleBasedShape(base: StrategyReport, next: StrategyReport): boolea
 
   if (next.verdict !== base.verdict) return false;
   // 목록의 개수가 줄면 규칙 엔진이 찾아낸 이야기나 과제가 조용히 사라진 것이다.
-  if (!Array.isArray(next.stories) || next.stories.length !== base.stories.length) return false;
-  if (!Array.isArray(next.actions) || next.actions.length !== base.actions.length) return false;
+  if (
+    !Array.isArray(next.stories) ||
+    next.stories.length !== base.stories.length
+  )
+    return false;
+  if (
+    !Array.isArray(next.actions) ||
+    next.actions.length !== base.actions.length
+  )
+    return false;
   return true;
 }
 
@@ -177,7 +217,9 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
 
   const [intake, setIntake] = useState<IntakeValue>(EMPTY_INTAKE);
   const [busy, setBusy] = useState<string | null>(null);
-  const [ignored, setIgnored] = useState<{ actionId: string; reason: string }[]>([]);
+  const [ignored, setIgnored] = useState<
+    { actionId: string; reason: string }[]
+  >([]);
   /**
    * 이번 분석에 대한 동의.
    *
@@ -188,7 +230,10 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
    * 저절로 무효가 되어야 한다. 그 일을 효과로 되돌리면 한 번은 옛 동의가 살아 있는
    * 순간이 생기는데, 동의에서는 그 한 번이 곧 자료 전송이다.
    */
-  const [consent, setConsent] = useState<{ appId: string | null; agreed: boolean }>({
+  const [consent, setConsent] = useState<{
+    appId: string | null;
+    agreed: boolean;
+  }>({
     appId: null,
     agreed: false,
   });
@@ -209,7 +254,13 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
       router.replace("/");
       return;
     }
-    const needsReport: StageId[] = ["review", "baseline", "story", "plan", "export"];
+    const needsReport: StageId[] = [
+      "review",
+      "baseline",
+      "story",
+      "plan",
+      "export",
+    ];
     if (needsReport.includes(stage) && !app.report) {
       router.replace("/apply/intake");
     }
@@ -243,32 +294,54 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
       // 2. 동의했고 쓸 수 있을 때만 요청을 만든다.
       //    동의하지 않았으면 요청 자체가 없다 — 보내지 않기로 한 자료는 담지도 않는다.
       if (canUseLlm(settings, consented)) {
-        const idToken =
-          session && isSessionValid(session, new Date().toISOString()) ? session.idToken : null;
-        const precision = await requestPrecision(
-          { posting: result.posting, profile: result.profile, report: result.report },
-          idToken,
-        );
+        /*
+         * 규칙 기반 결과는 위에서 이미 손에 들어왔다.
+         * 보강을 얹다 무엇이 터지든 **그것을 잃어서는 안 된다.**
+         * 여기서 던지면 setReport 도 go() 도 못 가고, 사용자는 이미 끝난 계산까지 잃는다.
+         */
+        try {
+          const idToken =
+            session && isSessionValid(session, new Date().toISOString())
+              ? session.idToken
+              : null;
+          const precision = await requestPrecision(
+            {
+              posting: result.posting,
+              profile: result.profile,
+              report: result.report,
+            },
+            idToken,
+          );
 
-        if (!precision.ok) {
-          outcome = { ...outcome, usedLlm: false, reason: precision.reason };
-        } else if (!keepsRuleBasedShape(result.report, precision.report)) {
-          outcome = { ...outcome, usedLlm: false, reason: SHAPE_MISMATCH_REASON };
-        } else {
-          report = precision.report;
-          /*
-           * 3. 문장이 바뀌었으니 이력서도 같은 분석서에서 다시 만든다.
-           *    이력서 문장은 분석서의 스토리에서 나오므로, 다시 만들지 않으면
-           *    분석서와 이력서가 서로 다른 말을 하게 된다.
-           *    뼈대가 규칙 기반과 같다는 것은 바로 위에서 확인했으므로 수치는 흔들리지 않는다.
-           */
-          resumes = buildResumeSet(result.posting, result.profile, report);
-          outcome = {
-            ...outcome,
-            usedLlm: precision.usedLlm,
-            reason: precision.reason,
-            modelId: precision.usedLlm ? precision.modelId : undefined,
-          };
+          if (!precision.ok) {
+            outcome = { ...outcome, usedLlm: false, reason: precision.reason };
+          } else if (!keepsRuleBasedShape(result.report, precision.report)) {
+            outcome = {
+              ...outcome,
+              usedLlm: false,
+              reason: SHAPE_MISMATCH_REASON,
+            };
+          } else {
+            report = precision.report;
+            /*
+             * 3. 문장이 바뀌었으니 이력서도 같은 분석서에서 다시 만든다.
+             *    이력서 문장은 분석서의 스토리에서 나오므로, 다시 만들지 않으면
+             *    분석서와 이력서가 서로 다른 말을 하게 된다.
+             *    뼈대가 규칙 기반과 같다는 것은 바로 위에서 확인했으므로 수치는 흔들리지 않는다.
+             */
+            resumes = buildResumeSet(result.posting, result.profile, report);
+            outcome = {
+              ...outcome,
+              usedLlm: precision.usedLlm,
+              reason: precision.reason,
+              modelId: precision.usedLlm ? precision.modelId : undefined,
+            };
+          }
+        } catch {
+          // 보강에 실패해도 분석은 끝난다. 규칙 기반 결과를 그대로 쓴다.
+          report = result.report;
+          resumes = result.resumes;
+          outcome = { ...outcome, usedLlm: false, reason: ENRICH_CRASH_REASON };
         }
       }
 
@@ -288,13 +361,10 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
     }
   }, [intake, store, go, settings, consented, session, noteAnalysis]);
 
-  const printDoc = useCallback(
-    (path: string) => {
-      // 인쇄 경로를 새 탭으로 연다. 현재 화면의 편집 상태를 잃지 않기 위해서다.
-      window.open(path, "_blank", "noopener");
-    },
-    [],
-  );
+  const printDoc = useCallback((path: string) => {
+    // 인쇄 경로를 새 탭으로 연다. 현재 화면의 편집 상태를 잃지 않기 위해서다.
+    window.open(path, "_blank", "noopener");
+  }, []);
 
   const downloadResume = useCallback(
     async (variant: ResumeVariant, format: ExportFormat) => {
@@ -317,7 +387,8 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
           const { downloadBlob } = await import("@/lib/export/docx");
           await downloadBlob(blob, resumeFileName(app, variant, "txt", stamp));
         } else {
-          const { buildResumeDocx, downloadBlob } = await import("@/lib/export/docx");
+          const { buildResumeDocx, downloadBlob } =
+            await import("@/lib/export/docx");
           const { getTemplate } = await import("@/lib/templates");
           const blob = await buildResumeDocx(doc, getTemplate(doc.templateId));
           await downloadBlob(blob, resumeFileName(app, variant, "docx", stamp));
@@ -338,13 +409,18 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
       }
       setBusy("report-docx");
       try {
-        const [{ buildReportDocx }, { downloadBlob }, { reportFileName }] = await Promise.all([
-          import("@/lib/export/report-docx"),
-          import("@/lib/export/docx"),
-          import("@/lib/export/filename"),
-        ]);
+        const [{ buildReportDocx }, { downloadBlob }, { reportFileName }] =
+          await Promise.all([
+            import("@/lib/export/report-docx"),
+            import("@/lib/export/docx"),
+            import("@/lib/export/filename"),
+          ]);
         const stamp = new Date().toISOString().slice(0, 7);
-        const blob = await buildReportDocx(app.report, app.posting, app.profile);
+        const blob = await buildReportDocx(
+          app.report,
+          app.posting,
+          app.profile,
+        );
         await downloadBlob(blob, reportFileName(app, "docx", stamp));
       } finally {
         setBusy(null);
@@ -368,9 +444,11 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
               // 동의 이전의 조건만 본다 — 관리자가 켰는가, 서버에 키가 있는가.
               available: canUseLlm(settings, true),
               unavailableReason: llmUnavailableReason(settings, true),
-              modelLabel: findModel(settings.modelId)?.label ?? settings.modelId,
+              modelLabel:
+                findModel(settings.modelId)?.label ?? settings.modelId,
               consented,
-              onConsentChange: (agreed) => setConsent({ appId: app?.id ?? null, agreed }),
+              onConsentChange: (agreed) =>
+                setConsent({ appId: app?.id ?? null, agreed }),
             }}
           />
         );
@@ -382,7 +460,9 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
             posting={app.posting}
             profile={app.profile}
             questions={app.questions}
-            onAnswer={(id, state, answer) => store.answerQuestion(id, state, answer)}
+            onAnswer={(id, state, answer) =>
+              store.answerQuestion(id, state, answer)
+            }
             onResolveFlag={(scope, flagId) => store.resolveFlag(scope, flagId)}
             onAddExperience={(text) => store.addExperienceFromText(text)}
             onNext={() => {
@@ -395,9 +475,13 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
       case "baseline":
       case "story":
       case "plan": {
-        if (!app.posting || !app.profile || !app.report || !app.resumes) return null;
+        if (!app.posting || !app.profile || !app.report || !app.resumes)
+          return null;
         const next: Record<typeof stage, { to: StageId; label: string }> = {
-          baseline: { to: "story", label: "스토리텔링으로 어디까지 설명되는지 보기" },
+          baseline: {
+            to: "story",
+            label: "스토리텔링으로 어디까지 설명되는지 보기",
+          },
           story: { to: "plan", label: "남는 차이를 과제와 목표로 바꾸기" },
           plan: { to: "export", label: "이력서 편집하고 문서 받기" },
         };
@@ -410,7 +494,9 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
             resumes={app.resumes}
             onAdoptStory={(id, adopted) => store.adoptStory(id, adopted)}
             onActionStatus={(id, s, ev) => store.setActionStatus(id, s, ev)}
-            onSaveActionToPlan={(id, saved) => store.saveActionToPlan(id, saved)}
+            onSaveActionToPlan={(id, saved) =>
+              store.saveActionToPlan(id, saved)
+            }
             onReassess={() => setIgnored(store.reassessNow())}
             reassessIgnored={ignored}
             onNext={() => {
@@ -423,7 +509,8 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
       }
 
       case "export":
-        if (!app.posting || !app.profile || !app.report || !app.resumes) return null;
+        if (!app.posting || !app.profile || !app.report || !app.resumes)
+          return null;
         return (
           <div className="space-y-10">
             <ResumeWorkbench
@@ -498,7 +585,9 @@ export function ApplyClient({ stage }: { stage: Exclude<StageId, "start"> }) {
  */
 function AnalysisOutcomeNotice({ outcome }: { outcome: AnalysisOutcome }) {
   if (outcome.usedLlm) {
-    const model = outcome.modelId ? (findModel(outcome.modelId)?.label ?? outcome.modelId) : null;
+    const model = outcome.modelId
+      ? (findModel(outcome.modelId)?.label ?? outcome.modelId)
+      : null;
     return (
       <Callout tone="ok" title="정밀 분석으로 설명과 문장을 다듬었습니다">
         {model ? `${model} 이 문장만 다듬었습니다. ` : ""}
@@ -509,8 +598,8 @@ function AnalysisOutcomeNotice({ outcome }: { outcome: AnalysisOutcome }) {
 
   return (
     <Callout tone="neutral" title="이 기기 안에서 분석한 결과입니다">
-      {outcome.reason ?? "정밀 분석을 쓰지 않았습니다."} 분석 결과는 빠진 것 없이 그대로
-      나옵니다.
+      {outcome.reason ?? "정밀 분석을 쓰지 않았습니다."} 분석 결과는 빠진 것
+      없이 그대로 나옵니다.
     </Callout>
   );
 }

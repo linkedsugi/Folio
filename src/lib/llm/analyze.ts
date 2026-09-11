@@ -67,7 +67,7 @@ export interface StoryPatch {
   connectionLogic?: string;
   resumeSentence?: string;
   interviewNote?: string;
-  scopeAndLimit?: string;
+  // scopeAndLimit 은 일부러 없다. 규칙 엔진이 숫자를 조립한 문장이라 모델이 쓰면 안 된다.
 }
 
 export interface ConcernPatch {
@@ -201,7 +201,6 @@ export function validateEnrichPatch(value: unknown): EnrichPatch | null {
             connectionLogic: asString(s.connectionLogic),
             resumeSentence: asString(s.resumeSentence),
             interviewNote: asString(s.interviewNote),
-            scopeAndLimit: asString(s.scopeAndLimit),
           };
         })
         .filter((s): s is StoryPatch => s !== null)
@@ -331,11 +330,27 @@ function applyStories(
     const patch = byId.get(story.id);
     if (!patch) return story;
 
+    /*
+     * 근거로 쓸 경험이 없는 스토리에는 문장을 붙이지 않는다.
+     * 부문(applyDimensions)과 같은 이유인데, 여기서 만들어진 문장은 이력서로 바로 나가므로
+     * 더 엄하게 본다.
+     */
+    if (!Array.isArray(story.usedExperienceIds) || story.usedExperienceIds.length === 0) {
+      return story;
+    }
+
+    /*
+     * scopeAndLimit 은 뺐다.
+     *
+     * 규칙 엔진이 `${current}% → ${afterStory}%. ${remainingGap}` 으로 **숫자를 직접 조립한**
+     * 문자열이다. 모델이 이 필드를 바꾸면 점수 필드는 그대로인 채 화면의 게이지와
+     * 다른 숫자가 같은 화면에 뜨고, 그대로 Word 문서로도 나간다.
+     * 점수를 못 바꾸게 막아 놓고 점수가 적힌 문장을 열어 두면 막은 것이 아니다.
+     */
     const fields = {
       connectionLogic: usable(patch.connectionLogic),
       resumeSentence: usable(patch.resumeSentence),
       interviewNote: usable(patch.interviewNote),
-      scopeAndLimit: usable(patch.scopeAndLimit),
     } as const;
 
     const next: Partial<Record<keyof typeof fields, string>> = {};
@@ -381,21 +396,35 @@ function applyConcerns(
     const honestLimit = usable(patch.honestLimit);
     if (!concern || !response || !honestLimit) return current;
 
-    const evidenceIds = patch.evidenceIds ?? [];
-    // 근거가 아예 없는 우려도, 없는 경험을 근거로 든 우려도 쓰지 않는다.
-    // 근거가 거짓이면 답도 거짓이고, 근거가 없으면 사용자가 확인할 길조차 없다.
-    if (evidenceIds.length === 0) return current;
-    if (evidenceIds.some((id) => !knownExperienceIds.has(id))) return current;
+    /*
+     * 근거 목록은 **규칙 엔진의 것을 그대로 둔다.**
+     *
+     * 한때 모델이 준 evidenceIds 를 그대로 썼다. 개수만 지키면 된다고 보았는데,
+     * 그 사이로 근거가 통째로 바뀌었다. 규칙 엔진이 "연결할 만한 경험이 아직 없습니다"
+     * 라며 비워 둔 자리에 모델이 학사 학위를 근거로 붙였고, 화면은 그것을 칩으로 그렸다.
+     * 근거가 바뀌면 문장이 아니라 **사실이 바뀐 것**이다. 이 앱이 하지 않기로 한 일이다.
+     *
+     * 그래서 모델이 든 근거는 화면에 나가지 않고, "이 답이 실제로 그 경험에 기대는가"를
+     * 확인하는 관문으로만 쓴다.
+     */
+    const claimed = patch.evidenceIds ?? [];
+    // 규칙 엔진이 근거를 못 찾은 우려에는 아무 말도 덧붙이지 않는다.
+    // 근거가 없는데 그럴듯한 답만 붙으면 사용자가 확인할 길이 없다.
+    if (current.evidenceIds.length === 0) return current;
+    // 모델이 근거를 아예 대지 않았거나, 규칙 엔진이 이 우려에 붙이지 않은 경험을 끌어왔다면
+    // 그 답은 다른 사실 위에 서 있는 것이므로 쓰지 않는다.
+    if (claimed.length === 0) return current;
+    if (claimed.some((id) => !current.evidenceIds.includes(id))) return current;
 
     const fields: string[] = [];
     if (concern !== current.concern) fields.push("concern");
     if (response !== current.response) fields.push("response");
     if (honestLimit !== current.honestLimit) fields.push("honestLimit");
-    if (!sameIds(evidenceIds, current.evidenceIds)) fields.push("evidenceIds");
     if (fields.length === 0) return current;
 
     for (const field of fields) changedPaths.push(`${pathPrefix}:concerns:${index}:${field}`);
-    return { concern, response, evidenceIds, honestLimit };
+    // evidenceIds 는 원본 그대로 나간다.
+    return { ...current, concern, response, honestLimit };
   });
 
   return { value, changedPaths };

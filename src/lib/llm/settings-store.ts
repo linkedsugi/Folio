@@ -131,7 +131,7 @@ type CallResult<T> = { ok: true; data: T } | { ok: false; failure: SettingsFailu
  * 실패를 null 로 뭉개지 않는다. 상태와 서버가 준 이유를 그대로 올려보내야
  * 설정 화면이 "관리자가 아니라서" 와 "토큰이 만료돼서" 를 구분해 말할 수 있다.
  */
-async function call<T>(init: RequestInit & { idToken: string }): Promise<CallResult<T>> {
+async function call<T>(init: RequestInit & { idToken: string | null }): Promise<CallResult<T>> {
   const { idToken, ...rest } = init;
 
   let res: Response;
@@ -141,7 +141,8 @@ async function call<T>(init: RequestInit & { idToken: string }): Promise<CallRes
       headers: {
         ...(rest.headers ?? {}),
         "content-type": "application/json",
-        authorization: `Bearer ${idToken}`,
+        // 토큰이 없으면 헤더를 붙이지 않는다. 서버는 공개 3종만 답한다.
+        ...(idToken ? { authorization: `Bearer ${idToken}` } : {}),
       },
     });
   } catch {
@@ -174,13 +175,13 @@ async function call<T>(init: RequestInit & { idToken: string }): Promise<CallRes
   }
 }
 
-async function fetchRemote(idToken: string): Promise<LlmSettings> {
+async function fetchRemote(idToken: string | null): Promise<LlmSettings> {
   const result = await call<{ settings: LlmSettings }>({ method: "GET", idToken });
   // 서버에 닿지 못하면 꺼진 상태로 본다. 확인하지 못한 설정으로 자료를 보내지 않는다.
   return result.ok ? normalizeSettings(result.data.settings) : DEFAULT_LLM_SETTINGS;
 }
 
-export function remoteSettingsStore(idToken: string): SettingsStore {
+export function remoteSettingsStore(idToken: string | null): SettingsStore {
   return {
     kind: "remote",
 
@@ -215,7 +216,14 @@ export function remoteSettingsStore(idToken: string): SettingsStore {
  * 서버 저장소를 그대로 쓰고 이유를 화면에 보이게 한다.
  */
 export async function resolveSettingsStore(idToken: string | null): Promise<SettingsStore> {
-  if (!idToken) return localSettingsStore;
+  /*
+   * 토큰이 없어도 서버에 물어본다.
+   *
+   * 예전에는 토큰이 없으면 곧장 기기 저장소로 갔다. 그런데 기기 저장소의 keyConfigured 는
+   * 언제나 false 라서, 로그인하지 않은 사람은 관리자가 켜 두고 키도 있는 배포에서조차
+   * 정밀 분석을 쓸 수 없었다. 게다가 화면은 "관리자가 켜지 않았습니다" 라는
+   * 틀린 이유를 댔다. 이 앱은 로그인 없이도 끝까지 쓸 수 있어야 한다.
+   */
   const probe = await call<{ settings: LlmSettings }>({ method: "GET", idToken });
   const serverAnswered = probe.ok || probe.failure.status > 0;
   return serverAnswered ? remoteSettingsStore(idToken) : localSettingsStore;

@@ -40,6 +40,16 @@ export const PER_MINUTE_LIMIT = 3;
 export const PER_HOUR_LIMIT = 20;
 
 /**
+ * 프로세스 전체의 시간당 상한.
+ *
+ * 키(IP)는 부르는 쪽이 x-forwarded-for 로 꾸밀 수 있다. 요청마다 다른 값을 넣으면
+ * 매번 새 버킷을 받아 키별 한도가 아무것도 막지 못한다.
+ * 키는 꾸밀 수 있어도 프로세스는 하나뿐이므로, 여기에 천장을 둔다.
+ * 이 값은 "정상적인 하루치보다는 넉넉하고, 키를 태워 없앨 만큼은 아닌" 자리다.
+ */
+export const GLOBAL_PER_HOUR_LIMIT = 200;
+
+/**
  * 서명이 확인된 사용자의 한도.
  * 누가 썼는지 남고 문제가 생기면 그 계정을 멈출 수 있으므로 더 넉넉히 준다.
  */
@@ -80,6 +90,8 @@ export interface RateLimitDecision {
 interface RateLimitStore {
   /** 키 → 허용된 호출 시각(ms). 오래된 것부터 버리므로 길이는 perHour 를 넘지 않는다. */
   hits: Map<string, number[]>;
+  /** 키와 무관한 프로세스 전체의 허용 기록. 키 회전으로 우회할 수 없는 천장이다. */
+  global: number[];
   lastSweptAt: number;
 }
 
@@ -90,7 +102,11 @@ interface RateLimitStore {
 const box = globalThis as typeof globalThis & { __rolefitRateLimit?: RateLimitStore };
 
 function store(): RateLimitStore {
-  if (!box.__rolefitRateLimit) box.__rolefitRateLimit = { hits: new Map(), lastSweptAt: 0 };
+  if (!box.__rolefitRateLimit) {
+    box.__rolefitRateLimit = { hits: new Map(), global: [], lastSweptAt: 0 };
+  }
+  // 예전 모양으로 남아 있던 저장소도 받아 준다(핫리로드 중 모듈이 섞이는 경우).
+  if (!Array.isArray(box.__rolefitRateLimit.global)) box.__rolefitRateLimit.global = [];
   return box.__rolefitRateLimit;
 }
 
@@ -131,6 +147,17 @@ export function checkRateLimit(
   const s = store();
   if (now - s.lastSweptAt >= SWEEP_INTERVAL_MS) sweep(s, now);
 
+  /*
+   * 키 회전으로도 넘을 수 없는 천장.
+   * 키별 한도만 두면 x-forwarded-for 를 매번 바꾸는 것으로 통째로 우회된다.
+   * 막힌 요청은 여기서도 세지 않는다 — 세면 두드리는 쪽이 창을 계속 밀어
+   * 정상 사용자까지 영영 막힌다.
+   */
+  s.global = s.global.filter((at) => now - at < HOUR_MS);
+  if (s.global.length >= GLOBAL_PER_HOUR_LIMIT) {
+    return { allowed: false, retryAfterSec: secondsUntil(s.global[0] + HOUR_MS, now) };
+  }
+
   const previous = s.hits.get(key) ?? [];
   // 1시간 밖의 기록은 어떤 판단에도 쓰이지 않는다. 여기서 잘라야 배열이 자라지 않는다.
   const recent = previous.filter((at) => now - at < HOUR_MS);
@@ -147,6 +174,7 @@ export function checkRateLimit(
   }
 
   recent.push(now);
+  s.global.push(now);
   // 지웠다 다시 넣어야 이 키가 Map 의 맨 뒤로 간다 — enforceCap 이 그 순서를 읽는다.
   s.hits.delete(key);
   s.hits.set(key, recent);
@@ -166,5 +194,5 @@ export function trackedKeyCount(): number {
 
 /** 기록을 모두 버린다. 테스트가 서로의 셈을 물려받지 않게 하려고 둔다. */
 export function resetRateLimit(): void {
-  box.__rolefitRateLimit = { hits: new Map(), lastSweptAt: 0 };
+  box.__rolefitRateLimit = { hits: new Map(), global: [], lastSweptAt: 0 };
 }

@@ -197,8 +197,10 @@ describe("검증 — 입력에 없는 것은 버린다", () => {
     expect(JSON.stringify(out.report)).not.toContain("우주정거장");
   });
 
-  it("실제 경험 id 를 근거로 든 우려는 받아들인다", async () => {
-    const expId = base.profile.experiences[0].id;
+  it("규칙 엔진이 붙인 근거에 기대는 우려는 받아들이되, 근거 목록은 원본을 쓴다", async () => {
+    const original = base.report.candidacyNow.concerns[0];
+    // 모델은 규칙 엔진이 이 우려에 붙여 둔 근거 중 하나만 든다. 새 근거를 끌어오지 않는다.
+    const cited = original.evidenceIds[0];
     stubPatch({
       candidacyNow: {
         concerns: [
@@ -206,7 +208,7 @@ describe("검증 — 입력에 없는 것은 버린다", () => {
             concern: "상용 게임 경력이 공고의 5년에 못 미칩니다.",
             response: "상용 게임의 퀘스트 UI 와 데이터 연동을 직접 구현했습니다.",
             honestLimit: "엔진 코어를 직접 수정한 경험은 아직 없습니다.",
-            evidenceIds: [expId],
+            evidenceIds: [cited],
           },
         ],
       },
@@ -216,7 +218,9 @@ describe("검증 — 입력에 없는 것은 버린다", () => {
     // 모델이 한 자리만 보냈어도 규칙 기반 우려의 개수는 그대로다.
     expect(out.report.candidacyNow.concerns).toHaveLength(base.report.candidacyNow.concerns.length);
     expect(out.report.candidacyNow.concerns[0].concern).toContain("공고의 5년");
-    expect(out.report.candidacyNow.concerns[0].evidenceIds).toEqual([expId]);
+    // 문장은 바뀌어도 **근거 목록은 규칙 엔진의 것 그대로**다.
+    // 근거가 바뀌면 문장이 아니라 사실이 바뀐 것이다.
+    expect(out.report.candidacyNow.concerns[0].evidenceIds).toEqual(original.evidenceIds);
     expect(out.report.candidacyNow.concerns.slice(1)).toEqual(
       base.report.candidacyNow.concerns.slice(1),
     );
@@ -598,5 +602,83 @@ describe("깨진 입력 — 던지지 않고 규칙 기반으로 돌아간다", 
 
     expect(out.report).toBe(base.report);
     expect(out.failure).toBe("bad-response");
+  });
+});
+
+describe("근거는 규칙 엔진의 것이다", () => {
+  it("규칙 엔진이 붙이지 않은 경험을 근거로 끌어오면 그 자리는 원본을 유지한다", async () => {
+    const original = base.report.candidacyNow.concerns[0];
+    // 규칙 엔진이 이 우려에 붙이지 않은 다른 경험을 근거로 든다.
+    const outsider = base.profile.experiences
+      .map((e) => e.id)
+      .find((id) => !original.evidenceIds.includes(id));
+    expect(outsider).toBeDefined();
+
+    stubPatch({
+      candidacyNow: {
+        concerns: [
+          {
+            concern: "모델이 새로 쓴 우려",
+            response: "모델이 새로 쓴 답",
+            honestLimit: "모델이 새로 쓴 한계",
+            evidenceIds: [outsider as string],
+          },
+        ],
+      },
+    });
+
+    const out = await enrichReport(input());
+    // 다른 사실 위에 선 답이므로 문장도 근거도 바뀌지 않는다.
+    expect(out.report.candidacyNow.concerns[0]).toEqual(original);
+  });
+
+  it("규칙 엔진이 근거를 못 찾은 우려에는 아무 말도 덧붙이지 않는다", async () => {
+    const report = structuredClone(base.report);
+    // 근거가 비어 있는 우려를 만든다 — 규칙 엔진이 연결할 경험을 못 찾은 상태.
+    report.candidacyNow.concerns[0] = {
+      ...report.candidacyNow.concerns[0],
+      evidenceIds: [],
+    };
+    const ungrounded = report.candidacyNow.concerns[0];
+
+    stubPatch({
+      candidacyNow: {
+        concerns: [
+          {
+            concern: "그럴듯하게 다듬은 우려",
+            response: "그럴듯하게 다듬은 답",
+            honestLimit: "그럴듯하게 다듬은 한계",
+            evidenceIds: [base.profile.experiences[0].id],
+          },
+        ],
+      },
+    });
+
+    const out = await enrichReport({ ...input(), report });
+    expect(out.report.candidacyNow.concerns[0]).toEqual(ungrounded);
+  });
+});
+
+describe("점수가 적힌 문장은 모델이 쓰지 못한다", () => {
+  it("scopeAndLimit 은 규칙 엔진이 숫자를 조립한 문장이라 바뀌지 않는다", async () => {
+    const story = base.report.stories[0];
+    expect(story).toBeDefined();
+
+    stubPatch({
+      stories: [
+        {
+          id: story.id,
+          // 모델이 매칭률을 바꿔 적으려 한다. 점수 필드는 그대로라 다른 검사는 통과한다.
+          scopeAndLimit: "30% → 95%. 사실상 요구를 모두 채웁니다.",
+          interviewNote: "면접에서는 맡은 범위를 그대로 설명합니다.",
+        } as never,
+      ],
+    });
+
+    const out = await enrichReport(input());
+    const after = out.report.stories.find((s) => s.id === story.id);
+    // 게이지와 다른 숫자가 같은 화면에 뜨면 안 된다. 문서로도 그대로 나간다.
+    expect(after?.scopeAndLimit).toBe(story.scopeAndLimit);
+    expect(JSON.stringify(out.report)).not.toContain("95%");
   });
 });

@@ -116,14 +116,44 @@ afterEach(() => {
 /* ─────────────────────────────── 읽기 */
 
 describe("GET — 읽을 수 있는 사람과 내려가는 값", () => {
-  it("토큰이 없으면 401", async () => {
+  /*
+   * 읽기는 로그인을 요구하지 않는다.
+   *
+   * 이 앱은 로그인 없이도 끝까지 쓸 수 있어야 하는데, 설정을 못 읽으면 익명 사용자는
+   * 정밀 분석을 영영 쓸 수 없고 화면이 "관리자가 켜지 않았습니다" 라는 틀린 이유를 댄다.
+   * 공개되는 것은 /api/health 가 이미 알리는 boolean 세 개뿐이다.
+   */
+  it("토큰이 없어도 공개 3종은 읽을 수 있다", async () => {
     const res = await GET(get());
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.settings).toMatchObject({
+      enabled: expect.any(Boolean),
+      modelId: expect.any(String),
+      keyConfigured: expect.any(Boolean),
+    });
+    expect(body.canEdit).toBe(false);
   });
 
-  it("서명이 확인되지 않는 토큰이면 401", async () => {
+  it("토큰이 없으면 운영 기록(updatedBy·updatedAt)은 주지 않는다", async () => {
+    const res = await GET(get());
+    const body = await res.json();
+    expect(body.settings.updatedBy).toBeUndefined();
+    expect(body.settings.updatedAt).toBeUndefined();
+  });
+
+  it("서명이 확인되지 않는 토큰도 공개 3종까지만 읽는다", async () => {
     const res = await GET(get("forged-token"));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.canEdit).toBe(false);
+    expect(body.settings.updatedBy).toBeUndefined();
+  });
+
+  it("API 키는 누구에게도 나가지 않는다", async () => {
+    const text = await (await GET(get())).text();
+    expect(text).not.toContain("ROLEFIT_ANTHROPIC_API_KEY");
+    expect(text.toLowerCase()).not.toContain("sk-");
   });
 
   it("일반 회원에게는 관리자 이메일(updatedBy)과 시각을 주지 않는다", async () => {

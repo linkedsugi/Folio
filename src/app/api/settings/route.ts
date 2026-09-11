@@ -146,7 +146,27 @@ function isAdminCaller(caller: Caller): boolean {
 
 export async function GET(request: Request) {
   const auth = await authenticate(request);
-  if (!auth.ok) return NextResponse.json({ reason: auth.reason }, { status: auth.status });
+  /*
+   * 로그인하지 않은 사람에게도 공개 3종(enabled·modelId·keyConfigured)은 답한다.
+   *
+   * 이 앱은 로그인 없이도 끝까지 쓸 수 있어야 하는데, 설정을 못 읽으면
+   * 익명 사용자는 정밀 분석을 **영영 쓸 수 없고** 화면은 "관리자가 켜지 않았습니다" 라고
+   * 거짓 이유를 댄다. 켜져 있고 키도 있는 배포에서도 그렇다.
+   * 왜 규칙 기반으로 갔는지 화면이 사실대로 말해야 한다는 규칙이 거기서 깨진다.
+   *
+   * 새로 새는 정보는 없다 — /api/health 가 이미 같은 boolean 을 공개한다.
+   * 운영 기록(updatedBy·updatedAt)은 forViewer 가 관리자에게만 준다.
+   */
+  if (!auth.ok) {
+    if (auth.status === 401 || auth.status === 501) {
+      return NextResponse.json({
+        settings: forViewer(toSettings(await readStored()), false),
+        persistent: Boolean(filePath),
+        canEdit: false,
+      });
+    }
+    return NextResponse.json({ reason: auth.reason }, { status: auth.status });
+  }
 
   const canEdit = isAdminCaller(auth.caller);
   return NextResponse.json({

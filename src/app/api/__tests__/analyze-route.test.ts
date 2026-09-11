@@ -430,3 +430,34 @@ describe("호출 기록은 무한히 쌓이지 않는다", () => {
     expect(checkRateLimit("ip:두드리는-쪽", t0 + MINUTE_MS + 1).allowed).toBe(true);
   });
 });
+
+describe("키를 꾸며도 넘을 수 없는 천장", () => {
+  it("IP 를 매번 바꿔도 프로세스 전체 상한에서 막힌다", async () => {
+    const { resetRateLimit, checkRateLimit, GLOBAL_PER_HOUR_LIMIT } = await import(
+      "@/lib/llm/rate-limit"
+    );
+    resetRateLimit();
+    const now = 1_800_000_000_000;
+
+    // x-forwarded-for 는 부르는 쪽이 쓰는 값이라 매번 새 키를 만들 수 있다.
+    let allowed = 0;
+    for (let i = 0; i < GLOBAL_PER_HOUR_LIMIT + 25; i += 1) {
+      if (checkRateLimit(`꾸며낸-ip-${i}`, now).allowed) allowed += 1;
+    }
+
+    // 키를 아무리 돌려도 소유자의 키 소비에는 천장이 있다.
+    expect(allowed).toBe(GLOBAL_PER_HOUR_LIMIT);
+  });
+
+  it("한 시간이 지나면 천장이 다시 열린다", async () => {
+    const { resetRateLimit, checkRateLimit, GLOBAL_PER_HOUR_LIMIT, HOUR_MS } = await import(
+      "@/lib/llm/rate-limit"
+    );
+    resetRateLimit();
+    const now = 1_800_000_000_000;
+    for (let i = 0; i < GLOBAL_PER_HOUR_LIMIT; i += 1) checkRateLimit(`ip-${i}`, now);
+
+    expect(checkRateLimit("새-ip", now).allowed).toBe(false);
+    expect(checkRateLimit("새-ip", now + HOUR_MS + 1000).allowed).toBe(true);
+  });
+});
