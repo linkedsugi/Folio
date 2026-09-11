@@ -707,8 +707,11 @@ function emptyIdealCandidate(): IdealCandidate {
  * 채용공고 원문 → JobPosting.
  * 실패하지 않는다. 읽지 못하면 빈 골격과 안내 플래그를 돌려주고 사용자가 직접 채우게 한다.
  */
-export function analyzeJobPosting(input: AnalyzeJobPostingInput): JobPosting {
-  const rawText = typeof input.rawText === "string" ? input.rawText : "";
+export function analyzeJobPosting(input: AnalyzeJobPostingInput | string): JobPosting {
+  // 호출부 편의를 위해 원문 문자열만 넘기는 것도 허용한다(붙여넣기로 간주).
+  const options: AnalyzeJobPostingInput =
+    typeof input === "string" ? { rawText: input, sourceType: "paste" } : input;
+  const rawText = typeof options.rawText === "string" ? options.rawText : "";
   const cleaned = cleanBody(rawText);
   const id = `jd-${shortHash(cleaned || rawText || "empty")}`;
   const bag = makeFlagBag();
@@ -721,8 +724,8 @@ export function analyzeJobPosting(input: AnalyzeJobPostingInput): JobPosting {
     );
     return {
       id,
-      sourceType: input.sourceType,
-      sourceUrl: input.sourceUrl,
+      sourceType: options.sourceType,
+      sourceUrl: options.sourceUrl,
       body: cleaned,
       company: "",
       roleTitle: "",
@@ -809,8 +812,8 @@ export function analyzeJobPosting(input: AnalyzeJobPostingInput): JobPosting {
 
   return {
     id,
-    sourceType: input.sourceType,
-    sourceUrl: input.sourceUrl,
+    sourceType: options.sourceType,
+    sourceUrl: options.sourceUrl,
     body,
     company,
     team,

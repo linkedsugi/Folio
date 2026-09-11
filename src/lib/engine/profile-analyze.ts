@@ -192,7 +192,7 @@ function detectResponsibilityLevel(text: string): { level: ResponsibilityLevel; 
  * 숫자+단위, 또는 개선·달성 류 동사. "수치가 있으면 성과"는 기획서 08 의 표현 기준과 같다.
  */
 const OUTCOME_RE =
-  /(\d+(?:\.\d+)?\s*(?:%|퍼센트|초|분|시간|배|건|개|명|원|억|만원|ms|회|위|등|점|k|x)\b?)|(개선|향상|단축|절감|증가|감소|달성|확보|수상|채택|게재|돌파|성장|출시했|해결했)/i;
+  /(\d+(?:\.\d+)?\s*(?:%|퍼센트|초|분|시간|배|건|개|명|원|억|만원|ms|회|위|등|점|배속))|(개선|향상|단축|절감|증가|감소|달성|확보|수상|채택|게재|돌파|성장|출시했|해결했)/i;
 
 function isOutcome(text: string): boolean {
   return OUTCOME_RE.test(text);
@@ -458,8 +458,10 @@ function linkLabel(url: string): string {
  * 이력 원문 → ApplicantProfile.
  * 여기서 만든 값은 초안이며, 사용자가 화면에서 확인·수정하는 것을 전제로 한다.
  */
-export function analyzeProfile(input: AnalyzeProfileInput): ApplicantProfile {
-  const rawText = typeof input.rawText === "string" ? input.rawText : "";
+export function analyzeProfile(input: AnalyzeProfileInput | string): ApplicantProfile {
+  // 호출부 편의를 위해 원문 문자열만 넘기는 것도 허용한다.
+  const options: AnalyzeProfileInput = typeof input === "string" ? { rawText: input } : input;
+  const rawText = typeof options.rawText === "string" ? options.rawText : "";
   const body = normalize(rawText);
   const bag = makeFlagBag();
   const id = `profile-${shortHash(body || "empty")}`;
@@ -480,7 +482,7 @@ export function analyzeProfile(input: AnalyzeProfileInput): ApplicantProfile {
   const headLines = allLines.slice(0, bodyStart).map((l) => l.trim()).filter(Boolean);
 
   // 2) 이름 / 한 줄 소개
-  let name = input.name?.trim() ?? "";
+  let name = options.name?.trim() ?? "";
   let headline = "";
   for (const line of headLines) {
     const labeled = NAME_LABEL_RE.exec(line);
@@ -608,11 +610,11 @@ export function analyzeProfile(input: AnalyzeProfileInput): ApplicantProfile {
   const urlSet = unique([
     ...extractUrls(headLines.join("\n")),
     ...extractUrls(sectionLinkText),
-    ...(input.links ?? []).map((l) => l.url),
+    ...(options.links ?? []).map((l) => l.url),
   ]);
   const links: ProfileLink[] = urlSet.map((url, i) => ({
     id: `link-${i + 1}`,
-    label: (input.links ?? []).find((l) => l.url === url)?.label ?? linkLabel(url),
+    label: (options.links ?? []).find((l) => l.url === url)?.label ?? linkLabel(url),
     url,
     status: "link-only",
   }));

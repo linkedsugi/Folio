@@ -37,6 +37,10 @@ export interface PipelineInput {
   /** 공고를 어디서 가져왔는가 — 분석 자체에는 영향을 주지 않고 출처 표기에만 쓴다. */
   sourceType?: JobPosting["sourceType"];
   sourceUrl?: string;
+  /** 지원자 이름 — 본문에서 읽지 못했을 때 사용자가 직접 준 값 */
+  name?: string;
+  /** 프로필 주소. 내용을 가져오지 못하면 "링크만 저장됨"으로 남는다. (기획서 02) */
+  links?: { label: string; url: string }[];
   docType?: ResumeDocType;
   language?: Language;
   templateId?: TemplateId;
@@ -82,20 +86,21 @@ export function stepAnalyzeJD(
   jdText: string,
   source?: { sourceType?: JobPosting["sourceType"]; sourceUrl?: string },
 ): JobPosting {
-  const posting = analyzeJobPosting(jdText);
-  if (!source) return posting;
-  return {
-    ...posting,
-    sourceType: source.sourceType ?? posting.sourceType,
-    sourceUrl: source.sourceUrl ?? posting.sourceUrl,
-  };
+  return analyzeJobPosting({
+    rawText: jdText,
+    sourceType: source?.sourceType ?? "paste",
+    sourceUrl: source?.sourceUrl,
+  });
 }
 
 /* ──────────────────────────────────── 1 intake · 이력 분석 */
 
 /** 지원자 자료를 ApplicantProfile 로 만든다. 재직 경력에만 한정하지 않는다. (기획서 02) */
-export function stepAnalyzeProfile(profileText: string): ApplicantProfile {
-  return analyzeProfile(profileText);
+export function stepAnalyzeProfile(
+  profileText: string,
+  extra?: { name?: string; links?: { label: string; url: string }[] },
+): ApplicantProfile {
+  return analyzeProfile({ rawText: profileText, name: extra?.name, links: extra?.links });
 }
 
 /* ──────────────────────────────────── 3 baseline · 직접 매핑 */
@@ -200,7 +205,7 @@ export function runPipeline(input: PipelineInput): PipelineResult {
     sourceType: input.sourceType,
     sourceUrl: input.sourceUrl,
   });
-  const profile = stepAnalyzeProfile(input.profileText);
+  const profile = stepAnalyzeProfile(input.profileText, { name: input.name, links: input.links });
 
   const options: StageOptions = {
     docType: input.docType,
