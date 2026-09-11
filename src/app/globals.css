@@ -2,52 +2,77 @@
 
 /*
  * RoleFit Canvas — 디자인 토큰
- * 기획서 문서의 시각 언어를 그대로 옮긴다.
- *   네이비 헤더 / 얇은 규칙선 / 표 중심 레이아웃 /
- *   현재(청색) · 스토리 후(민트) · 목표(황색) 3색 단계 표시
+ *
+ * 처음에는 기획서 PDF 의 문서 인상을 그대로 옮겼다(네이비 머리글, 얇은 규칙선).
+ * 문서로는 정확했지만 제품으로는 차가웠다. 지원 준비는 불안한 일이고,
+ * 기획서 13 도 낮은 점수로 불안을 자극하지 말라고 못박았다.
+ * 그래서 종이 같은 따뜻한 바탕과 부드러운 모서리로 바꾼다.
+ *
+ * 다만 **이력서 지면은 문서로 남긴다.** 그건 실제로 인쇄되어 남의 손에 들어가는
+ * 서류이고, 제품처럼 꾸미면 오히려 신뢰를 잃는다. 앱의 껍데기만 바꾸는 것이다.
+ *
+ * 3단계 색은 뜻을 유지한다: 현재(지금 서 있는 곳) → 스토리(이미 가진 것) → 목표(만들어 갈 것).
  */
 
 @theme {
-  /* 기본 면 */
+  /* ── 바탕 ── 순백 대신 미색 종이. 오래 보아도 눈이 덜 피로하다. */
   --color-canvas: #ffffff;
-  --color-surface: #f7f8fa;
-  --color-surface-sunken: #eef1f5;
+  --color-surface: #f7f6f2;
+  --color-surface-sunken: #eeece5;
 
-  /* 잉크 */
-  --color-ink: #12263f;
-  --color-ink-strong: #0b1b2e;
-  --color-ink-muted: #5a6b80;
-  --color-ink-faint: #8a97a8;
+  /* ── 잉크 ── 파란 먹 대신 따뜻한 숯. 사람이 쓴 글처럼 읽힌다. */
+  --color-ink: #1f1d1a;
+  --color-ink-strong: #100f0d;
+  --color-ink-muted: #6b6459;
+  --color-ink-faint: #9b9387;
 
-  /* 규칙선 */
-  --color-rule: #dde3ea;
-  --color-rule-strong: #c3ccd8;
+  /* ── 선 ── 규칙선을 옅게. 칸을 나누되 가두지 않는다. */
+  --color-rule: #e6e2d9;
+  --color-rule-strong: #d2ccbf;
 
-  /* 브랜드 */
-  --color-brand: #1f5fa8;
-  --color-brand-strong: #17497f;
-  --color-brand-soft: #e9f0f9;
+  /* ── 브랜드 ── 깊은 청록. 성장과 적합을 함께 뜻한다. */
+  --color-brand: #0f6e5c;
+  --color-brand-strong: #0a5346;
+  --color-brand-soft: #e4f0ec;
 
-  /* 매칭 3단계 */
-  --color-now: #2b6cb0;
-  --color-now-soft: #edf2fa;
-  --color-now-rule: #c8d8ee;
+  /*
+   * ── 매칭 3단계 ──
+   * 서로 다른 색조로 나아가게 해서, 숫자를 읽기 전에 단계가 먼저 보이게 한다.
+   * 남색(지금) → 청록(연결) → 황금(목표)
+   */
+  --color-now: #3d5a80;
+  --color-now-soft: #eaeff5;
+  --color-now-rule: #c3d1e2;
 
-  --color-story: #1b8a63;
-  --color-story-soft: #e9f5f0;
-  --color-story-rule: #bde0d1;
+  --color-story: #0f6e5c;
+  --color-story-soft: #e2efeb;
+  --color-story-rule: #b6d8cf;
 
-  --color-goal: #b07514;
-  --color-goal-soft: #fdf4e3;
-  --color-goal-rule: #f0dcb4;
+  --color-goal: #9a6510;
+  --color-goal-soft: #fbf1de;
+  --color-goal-rule: #eddbb4;
 
-  /* 상태 */
-  --color-warn: #b3541e;
-  --color-warn-soft: #fcefe7;
-  --color-danger: #a72f36;
-  --color-danger-soft: #fbecec;
-  --color-ok: #1b7a4b;
-  --color-ok-soft: #e8f5ee;
+  /* ── 상태 ── */
+  --color-warn: #9a5518;
+  --color-warn-soft: #fbeee2;
+  --color-danger: #9b2f31;
+  --color-danger-soft: #f9e9e8;
+  --color-ok: #14664a;
+  --color-ok-soft: #e3f0ea;
+
+  /*
+   * ── 모서리 ──
+   * 코드 전체가 rounded-sm 을 쓰고 있으므로 이 값 하나로 인상이 바뀐다.
+   * 8px 은 작은 뱃지에서도 과하지 않으면서 카드에서는 부드럽게 읽히는 지점이다.
+   */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+
+  /* ── 그림자 ── 띄우는 용도가 아니라 층을 구분하는 용도. 아주 옅게. */
+  --shadow-card: 0 1px 2px rgb(31 29 26 / 0.04), 0 1px 3px rgb(31 29 26 / 0.06);
+  --shadow-raised: 0 2px 4px rgb(31 29 26 / 0.04), 0 4px 12px rgb(31 29 26 / 0.08);
+  --shadow-overlay: 0 8px 24px rgb(31 29 26 / 0.12), 0 2px 6px rgb(31 29 26 / 0.08);
 
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
@@ -69,7 +94,7 @@ body {
   /* 한글 가독성: 단어 단위 줄바꿈 */
   word-break: keep-all;
   overflow-wrap: anywhere;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -80,14 +105,14 @@ body {
 
 /* 문서 상단 규칙선 — 기획서의 머리글 */
 .doc-rule {
-  border-bottom: 2px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-rule);
 }
 
 /* 포커스 링 */
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* 스크롤바 */
@@ -98,9 +123,17 @@ body {
   }
 }
 
-/* ── 인쇄 / PDF 내보내기 ─────────────────────────────
-   이력서·분석서는 브라우저 인쇄로 PDF 를 만든다.
-   한글 글꼴이 그대로 임베드되므로 라이브러리 변환보다 정확하다. */
+/*
+ * ── 이력서 지면 ──
+ * 여기만은 제품이 아니라 문서다. 실제로 인쇄되어 남의 손에 들어가는 서류이므로
+ * 흰 종이, 각진 모서리, 촘촘한 줄간격을 유지한다.
+ */
+.print-page {
+  border-radius: 2px;
+  line-height: 1.6;
+}
+
+/* ── 인쇄 / PDF 내보내기 ───────────────────────── */
 @page {
   size: A4;
   margin: 16mm 14mm;
